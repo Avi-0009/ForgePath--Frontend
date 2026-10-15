@@ -1,36 +1,68 @@
 import { useState } from "react";
-import { Phone, Lock, ArrowRight, Eye, EyeOff, Hammer } from "lucide-react";
+import { AtSign, Lock, ArrowRight, Eye, EyeOff, Hammer } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { z } from "zod";
 import toast from "react-hot-toast";
 
 interface LoginFormProps {
   setIsSignUp: (val: boolean) => void;
 }
 
+/*  Zod schemas  */
+
+const emailSchema = z
+  .string()
+  .trim()
+  .email("Enter a valid email address.");
+
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, "Username must be at least 3 characters.")
+  .max(20, "Username cannot exceed 20 characters.")
+  .regex(
+    /^[a-zA-Z0-9_]+$/,
+    "Username can only contain letters, numbers, and underscores.",
+  );
+
+const loginIdentifierSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter your email or username.")
+  .refine(
+    (val) => (val.includes("@") ? emailSchema.safeParse(val).success : usernameSchema.safeParse(val).success),
+    { message: "Enter a valid email or username (3-20 chars, letters, numbers, underscores)." },
+  );
+
+const loginSchema = z.object({
+  identifier: loginIdentifierSchema,
+  password: z
+    .string()
+    .min(1, "Enter your password.")
+    .max(16, "Password cannot exceed 16 characters."),
+});
+
+/*  Component  */
+
 const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
   const navigate = useNavigate();
-  const [phone, setPhone] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, "");
-    if (val.startsWith("0")) val = val.slice(1);
-    if (val.length > 10) val = val.slice(0, 10);
-    setPhone(val);
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (phone.length !== 10) {
-      toast.error("Phone number must be 10 digits.");
+    setError("");
+
+    const parsed = loginSchema.safeParse({ identifier, password });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0].message);
       return;
     }
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters.");
-      return;
-    }
+
+    // TODO: replace with real backend call
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
@@ -65,18 +97,18 @@ const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
-          <label className="form-label" htmlFor="login-phone">
-            Phone number
+          <label className="form-label" htmlFor="login-identifier">
+            Email or username
           </label>
           <div className="relative">
-            <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
+            <AtSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
             <input
-              id="login-phone"
-              type="tel"
-              autoComplete="tel"
-              value={phone}
-              onChange={handlePhoneChange}
-              placeholder="10-digit phone number"
+              id="login-identifier"
+              type="text"
+              autoComplete="username"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="you@example.com or your_handle"
               className="input pl-10 pr-3"
             />
           </div>
@@ -104,14 +136,16 @@ const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-app-dim hover:text-app-text transition-colors"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? (
-                <EyeOff className="w-4 h-4" />
-              ) : (
-                <Eye className="w-4 h-4" />
-              )}
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
         </div>
+
+        {error && (
+          <div className="text-status-red text-xs font-medium px-1">
+            {error}
+          </div>
+        )}
 
         <div className="flex justify-end">
           <button
@@ -133,7 +167,6 @@ const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
         </button>
       </form>
 
-      {/* Mobile-only switch to signup */}
       <div className="mt-6 text-center text-sm text-app-muted md:hidden">
         Don&apos;t have an account?{" "}
         <button
