@@ -1,0 +1,164 @@
+import { useState } from "react";
+import { User, Phone, Lock, ArrowRight, Eye, EyeOff, Hammer } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
+interface SignupFormProps {
+  setIsSignUp: (val: boolean) => void;
+}
+
+const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
+  const navigate = useNavigate();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, "");
+    if (val.startsWith("0")) val = val.slice(1);
+    if (val.length > 10) val = val.slice(0, 10);
+    setPhone(val);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      toast.error("Enter your name.");
+      return;
+    }
+    if (phone.length !== 10) {
+      toast.error("Phone number must be 10 digits.");
+      return;
+    }
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
+    setIsSubmitting(true);
+    setTimeout(() => {
+      setIsSubmitting(false);
+      toast.success("Account created (demo). Sign in to continue.");
+      setIsSignUp(false);
+      navigate("/auth");
+    }, 700);
+  };
+
+  return (
+    <div className="w-full max-w-md mx-auto">
+      {/* Mobile-only brand */}
+      <div className="flex md:hidden items-center gap-2 mb-8">
+        <div className="w-9 h-9 rounded-xl bg-app-accent text-app-accent-ink grid place-items-center">
+          <Hammer className="w-5 h-5" />
+        </div>
+        <div className="font-manrope font-extrabold tracking-tight text-app-text">
+          ForgePath
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <div className="text-micro tracking-eyebrow uppercase text-app-dim font-bold mb-2">
+          GET STARTED
+        </div>
+        <h1 className="font-manrope text-3xl font-extrabold tracking-tight text-app-text mb-2">
+          Create your account
+        </h1>
+        <p className="text-app-muted text-sm">
+          Local-only workspace. Nothing leaves your device.
+        </p>
+      </div>
+
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <div>
+          <label className="form-label" htmlFor="signup-name">
+            Full name
+          </label>
+          <div className="relative">
+            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
+            <input
+              id="signup-name"
+              type="text"
+              autoComplete="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
+              className="input pl-10 pr-3"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="form-label" htmlFor="signup-phone">
+            Phone number
+          </label>
+          <div className="relative">
+            <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
+            <input
+              id="signup-phone"
+              type="tel"
+              autoComplete="tel"
+              value={phone}
+              onChange={handlePhoneChange}
+              placeholder="10-digit phone number"
+              className="input pl-10 pr-3"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="form-label" htmlFor="signup-password">
+            Password
+          </label>
+          <div className="relative">
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
+            <input
+              id="signup-password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              maxLength={16}
+              placeholder="At least 6 characters"
+              className="input pl-10 pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-app-dim hover:text-app-text transition-colors"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="btn btn-primary w-full h-11 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+        >
+          {isSubmitting ? "Creating account…" : "Create account"}
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </form>
+
+      {/* Mobile-only switch to login */}
+      <div className="mt-6 text-center text-sm text-app-muted md:hidden">
+        Already have an account?{" "}
+        <button
+          onClick={() => setIsSignUp(false)}
+          className="text-app-accent font-semibold hover:underline underline-offset-4"
+        >
+          Sign in
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default SignupForm;
