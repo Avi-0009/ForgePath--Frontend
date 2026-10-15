@@ -1,43 +1,84 @@
 @import "tailwindcss";
 
 @theme {
-  /* Colors */
+  /* ===== Base surfaces ===== */
   --color-app-bg: #111315;
   --color-app-panel: #191c1f;
   --color-app-panel2: #202428;
   --color-app-panel3: #252a2f;
   --color-app-line: #30363c;
+  --color-app-line-soft: #2a2f33;
+  --color-app-line-faint: #2b3034;
+  --color-app-line-hover: #56616a;
+  --color-app-row-hover: #202427;
+
+  /* ===== Text ===== */
   --color-app-text: #f2f3f4;
   --color-app-muted: #a0a7ad;
   --color-app-dim: #737c84;
+  --color-app-dim2: #737d84;
+  --color-app-text-faint: #77828a;
+  --color-app-table-head: #788189;
+  --color-app-mono-text: #d1d6da;
+
+  /* ===== Accent ===== */
   --color-app-accent: #c1f06b;
+  --color-app-accent-hover: #d0f990;
   --color-app-accent-ink: #1a2410;
-  
-  /* Status Colors */
+
+  /* ===== Accent soft states ===== */
+  --color-app-accent-line-hover: #64704f;
+  --color-app-accent-soft-hover: #1d211b;
+
+  /* ===== Buttons ===== */
+  --color-app-btn: #22272b;
+  --color-app-btn-hover: #2d3338;
+
+  /* ===== Icon / mark backgrounds ===== */
+  --color-app-icon-bg: #252b2e;
+  --color-app-icon-bg2: #2a3034;
+  --color-app-mark-bg: #282e31;
+  --color-app-mark-text: #c7cdd1;
+
+  /* ===== Status base ===== */
   --color-status-blue: #8bbcff;
   --color-status-purple: #bea3ff;
   --color-status-amber: #f3c879;
   --color-status-red: #ff8888;
   --color-status-green: #9ee6b3;
 
-  /* Geometry */
+  /* ===== Status pill (border + bg pairs) ===== */
+  --color-status-green-line: #3c5b46;
+  --color-status-green-bg: #1d2c23;
+  --color-status-amber-line: #5a4b32;
+  --color-status-amber-bg: #30291d;
+  --color-status-blue-line: #344a63;
+  --color-status-blue-bg: #1c2938;
+
+  /* ===== Callout ===== */
+  --color-callout-line: #4b503a;
+  --color-callout-bg: #22271d;
+  --color-callout-text: #cad7b9;
+  --color-callout-strong: #eff8e6;
+
+  /* ===== Geometry ===== */
   --radius-panel: 14px;
+  --radius-callout: 10px;
   --shadow-panel: 0 16px 44px rgba(0, 0, 0, 0.2);
 
-  /* Typography */
+  /* ===== Typography ===== */
   --font-sans: 'DM Sans', sans-serif;
   --font-manrope: 'Manrope', sans-serif;
   --font-mono: 'DM Mono', monospace;
 
-    /* Buttons */
-  --color-app-btn: #22272b;
-  --color-app-btn-hover: #2d3338;
-  --color-app-line-hover: #56616a;
-  --color-app-accent-hover: #d0f990;
-
-  /* Custom sizes */
+  /* ===== Text sizes ===== */
   --text-micro: 10px;
+  --text-2xs: 11px;
+
+  /* ===== Tracking ===== */
   --tracking-eyebrow: 0.13em;
+
+  /* ===== Container ===== */
   --container-app: 1550px;
 }
 
