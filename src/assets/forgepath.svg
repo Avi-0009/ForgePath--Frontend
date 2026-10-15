@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="forgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF512F" />
+      <stop offset="100%" stop-color="#F09819" />
+    </linearGradient>
+    
+    <linearGradient id="pathGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00C9FF" />
+      <stop offset="100%" stop-color="#92FE9D" />
+    </linearGradient>
+    
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="12" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="15" flood-color="#FF512F" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  
+  <!-- Premium Dark Background -->
+  <rect width="100%" height="100%" fill="#0B0C10" rx="100" />
+  
+  <g transform="translate(100, 85)">
+    <!-- The Forge / Anvil -->
+    <path d="M 30,50 
+             L 270,50 A 20,20 0 0,1 290,70
+             L 290,90 A 20,20 0 0,1 270,110
+             L 220,110 
+             L 180,160 
+             L 180,220 
+             L 220,220 A 20,20 0 0,1 240,240
+             L 240,260 A 20,20 0 0,1 220,280
+             L 80,280 A 20,20 0 0,1 60,260
+             L 60,240 A 20,20 0 0,1 80,220
+             L 120,220 
+             L 120,160 
+             L 80,110 
+             L 30,110 A 20,20 0 0,1 10,90
+             L 10,70 A 20,20 0 0,1 30,50 Z" 
+          fill="#131116" stroke="url(#forgeGrad)" stroke-width="16" stroke-linejoin="round" filter="url(#shadow)" />
+    
+    <!-- The Path / Circuit Line -->
+    <path d="M -20,250 
+             L 80,250
+             L 150,180
+             L 150,120
+             L 220,80
+             L 320,80" 
+          fill="none" stroke="url(#pathGrad)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+          
+    <!-- Circuit Nodes -->
+    <circle cx="-20" cy="250" r="14" fill="#00C9FF" filter="url(#glow)" />
+    <circle cx="320" cy="80" r="14" fill="#92FE9D" filter="url(#glow)" />
+    
+    <circle cx="80" cy="250" r="8" fill="#0B0C10" stroke="#00C9FF" stroke-width="4" />
+    <circle cx="150" cy="180" r="8" fill="#0B0C10" stroke="url(#pathGrad)" stroke-width="4" />
+    <circle cx="150" cy="120" r="8" fill="#0B0C10" stroke="url(#pathGrad)" stroke-width="4" />
+    <circle cx="220" cy="80" r="8" fill="#0B0C10" stroke="#92FE9D" stroke-width="4" />
+
+    <!-- Ambient Floating Tech Sparks -->
+    <circle cx="60" cy="20" r="5" fill="#F09819" filter="url(#glow)"/>
+    <circle cx="280" cy="-10" r="7" fill="#FF512F" filter="url(#glow)"/>
+    <circle cx="330" cy="220" r="6" fill="#92FE9D" filter="url(#glow)"/>
+    <circle cx="10" cy="290" r="4" fill="#00C9FF" filter="url(#glow)"/>
+  </g>
+</svg>

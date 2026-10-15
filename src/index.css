@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colors */
+  --color-app-bg: #111315;
+  --color-app-panel: #191c1f;
+  --color-app-panel2: #202428;
+  --color-app-panel3: #252a2f;
+  --color-app-line: #30363c;
+  --color-app-text: #f2f3f4;
+  --color-app-muted: #a0a7ad;
+  --color-app-dim: #737c84;
+  --color-app-accent: #c1f06b;
+  --color-app-accent-ink: #1a2410;
+  
+  /* Status Colors */
+  --color-status-blue: #8bbcff;
+  --color-status-purple: #bea3ff;
+  --color-status-amber: #f3c879;
+  --color-status-red: #ff8888;
+  --color-status-green: #9ee6b3;
+
+  /* Geometry */
+  --radius-panel: 14px;
+  --shadow-panel: 0 16px 44px rgba(0, 0, 0, 0.2);
+
+  /* Typography */
+  --font-sans: 'DM Sans', sans-serif;
+  --font-manrope: 'Manrope', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+
+    /* Buttons */
+  --color-app-btn: #22272b;
+  --color-app-btn-hover: #2d3338;
+  --color-app-line-hover: #56616a;
+  --color-app-accent-hover: #d0f990;
+
+  /* Custom sizes */
+  --text-micro: 10px;
+  --tracking-eyebrow: 0.13em;
+  --container-app: 1550px;
+}
+
+@utility grid-cols-home {
+  grid-template-columns: minmax(0, 1.6fr) minmax(270px, 0.9fr);
+}
+
+@layer base {
+  body {
+    @apply m-0 bg-app-bg text-app-text text-sm leading-relaxed font-sans;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply min-h-9.5 border border-app-line rounded-lg bg-app-btn text-app-text px-3 py-2 inline-flex items-center justify-center gap-2 text-xs font-semibold transition-all duration-150 hover:bg-app-btn-hover hover:border-app-line-hover hover:-translate-y-px;
+  }
+  .btn-primary {
+    @apply bg-app-accent text-app-accent-ink border-app-accent hover:bg-app-accent-hover;
+  }
+  .btn-ghost {
+    @apply bg-transparent border-transparent hover:bg-app-btn-hover hover:border-app-line;
+  }
+}
