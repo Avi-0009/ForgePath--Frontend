@@ -1,56 +1,110 @@
 import { useState } from "react";
-import { Mail, Lock, ArrowRight, Eye, EyeOff, Hammer } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import {
+  User,
+  Mail,
+  Lock,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Hammer,
+  UserRound,
+  AtSign,
+} from "lucide-react";
+import { useNavigate, NavLink } from "react-router-dom";
 import { z } from "zod";
 import toast from "react-hot-toast";
+import { Register } from "../../Api/Auth";
+import { getApiError } from "../../utils/apiError";
 
 interface SignupFormProps {
   setIsSignUp: (val: boolean) => void;
 }
 
-/*  Zod schema  */
-
+// Zod schema
 const signupSchema = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(1, "Full name is required.")
+    .max(100, "Full name cannot exceed 100 characters."),
+
+  username: z
+    .string()
+    .trim()
+    .transform((value) => value.toLowerCase())
+    .pipe(
+      z
+        .string()
+        .min(3, "Username must be at least 3 characters.")
+        .max(20, "Username cannot exceed 20 characters.")
+        .regex(
+          /^[a-z0-9_]+$/,
+          "Username can contain lowercase letters, numbers, and underscores only.",
+        ),
+    ),
+
   email: z
     .string()
     .trim()
-    .min(1, "Email is required.")
-    .email("Enter a valid email address."),
+    .email("Enter a valid email address.")
+    .max(254, "Email is too long.")
+    .transform((value) => value.toLowerCase()),
+
   password: z
     .string()
-    .min(6, "Password must be at least 6 characters.")
-    .max(16, "Password cannot exceed 16 characters."),
+    .min(8, "Password must be at least 8 characters.")
+    .max(128, "Password cannot exceed 128 characters."),
 });
 
-/*  Component  */
-
+// Components
 const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
   const navigate = useNavigate();
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setFormError("");
 
-    const parsed = signupSchema.safeParse({ email, password });
-    if (!parsed.success) {
-      setError(parsed.error.issues[0].message);
-      return;
-    }
+  const parsed = signupSchema.safeParse({
+    fullName,
+    username,
+    email,
+    password,
+  });
 
-    // TODO: replace with real backend call
+  if (!parsed.success) {
+    setFormError(parsed.error.issues[0]?.message ?? "Invalid signup details.");
+    return;
+  }
+
+  try {
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      toast.success("Account created (demo). Sign in to continue.");
-      setIsSignUp(false);
-      navigate("/auth");
-    }, 700);
-  };
+
+    await Register(
+      parsed.data.fullName,
+      parsed.data.username,
+      parsed.data.email,
+      parsed.data.password,
+    );
+
+    toast.success("Account created successfully!");
+    setIsSignUp(false);
+    navigate("/auth");
+  } catch (err: unknown) {
+    const msg = await getApiError(err, "Unable to create your account.");
+    setFormError(msg);
+    toast.error(msg);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -77,8 +131,51 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
+        {/* FIXED: Added missing Name input field */}
         <div>
-          <label className="form-label" htmlFor="signup-email">
+          <label className="form-label" htmlFor="signup-full-name">
+            Full name
+          </label>
+
+          <div className="relative">
+            <UserRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
+
+            <input
+              id="signup-full-name"
+              type="text"
+              autoComplete="name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              maxLength={100}
+              placeholder="Your full name"
+              className="input pl-10 pr-3"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="form-label" htmlFor="signup-username">
+            Username
+          </label>
+
+          <div className="relative">
+            <AtSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
+
+            <input
+              id="signup-username"
+              type="text"
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              maxLength={20}
+              placeholder="Choose a username"
+              className="input pl-10 pr-3"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="form-label hidden" htmlFor="signup-email">
             Email
           </label>
           <div className="relative">
@@ -88,7 +185,7 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value.trim())}
               placeholder="you@example.com"
               className="input pl-10 pr-3"
             />
@@ -96,7 +193,7 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
         </div>
 
         <div>
-          <label className="form-label" htmlFor="signup-password">
+          <label className="form-label hidden" htmlFor="signup-password">
             Password
           </label>
           <div className="relative">
@@ -107,7 +204,7 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              maxLength={16}
+              maxLength={32}
               placeholder="At least 6 characters"
               className="input pl-10 pr-10"
             />
@@ -122,9 +219,9 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
           </div>
         </div>
 
-        {error && (
+        {formError && (
           <div className="text-status-red text-xs font-medium px-1">
-            {error}
+            {formError}
           </div>
         )}
 
@@ -134,18 +231,34 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
           className="btn btn-primary w-full h-11 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
         >
           {isSubmitting ? "Creating account…" : "Create account"}
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-4 h-4 ml-2" />
         </button>
       </form>
 
-      <div className="mt-6 text-center text-sm text-app-muted md:hidden">
-        Already have an account?{" "}
-        <button
-          onClick={() => setIsSignUp(false)}
-          className="text-app-accent font-semibold hover:underline underline-offset-4"
+      <div className="mt-6 flex flex-col gap-4 text-center text-sm text-app-muted md:hidden">
+        <div>
+          Already have an account?{" "}
+          <button
+            onClick={() => setIsSignUp(false)}
+            className="text-app-accent font-semibold hover:underline underline-offset-4"
+          >
+            Sign in
+          </button>
+        </div>
+        
+        <div className="flex items-center justify-center gap-2 text-app-dim">
+          <span className="h-px w-8 bg-app-line"></span>
+          <span className="text-xs uppercase tracking-widest font-bold">OR</span>
+          <span className="h-px w-8 bg-app-line"></span>
+        </div>
+
+        {/* Added NavLink for guest routing */}
+        <NavLink 
+          to="/" 
+          className="font-medium text-app-text hover:text-app-accent transition-colors"
         >
-          Sign in
-        </button>
+          Explore workspace as guest →
+        </NavLink>
       </div>
     </div>
   );
