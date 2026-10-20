@@ -37,17 +37,26 @@ const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
 
     try {
       setIsSubmitting(true);
-      const data: any = await Login(identifier, password);
-      
-      // Pass the user object and token to your auth store
+
+      const data = await Login(identifier, password);
+      const user = data.user;
+
       login(
         {
-          id: data.user?.id || "user-1",
-          name: data.user?.name || identifier,
-          email: data.user?.email || identifier,
-          avatar: data.user?.avatar || data.user?.name?.substring(0, 2).toUpperCase() || "FP",
+          id: user.id,
+          name: user.full_name,
+          username: user.username,
+          email: user.email,
+          avatar:
+            user.full_name
+              .trim()
+              .split(/\s+/)
+              .map((part) => part[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase() || "FP",
         },
-        data.token
+        data.access_token,
       );
 
       toast.success("Signed in successfully!");
