@@ -1,55 +1,73 @@
 import { useState } from "react";
-import { Mail, Lock, ArrowRight, Eye, EyeOff, Hammer } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { User, Mail, Lock, ArrowRight, Eye, EyeOff, Hammer } from "lucide-react";
+import { useNavigate, NavLink } from "react-router-dom";
 import { z } from "zod";
 import toast from "react-hot-toast";
+import { Register } from "../../Api/Auth";
+import { getApiError } from "../../utils/apiError";
 
 interface SignupFormProps {
   setIsSignUp: (val: boolean) => void;
 }
 
-/*  Zod schema  */
+// Zod schema
+const nameSchema = z
+  .string()
+  .min(3, 'Name must be at least 3 characters.')
+  .max(20, 'Name must be at most 20 characters')
+  .regex(/^[A-Za-z\s]+$/, 'Name can only contain letter and spaces.');
 
-const signupSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .min(1, "Email is required.")
-    .email("Enter a valid email address."),
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters.")
-    .max(16, "Password cannot exceed 16 characters."),
-});
+const emailSchema = z.string().email('Please enter a valid email address.')
 
-/*  Component  */
+const passwordSchema = z
+  .string()
+  .min(6, 'Password must be at least 6 characters')
+  .max(32, 'Password must be at most 32 characters')
+
+// Components
 
 const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
   const navigate = useNavigate();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setFormError("");
 
-    const parsed = signupSchema.safeParse({ email, password });
-    if (!parsed.success) {
-      setError(parsed.error.issues[0].message);
-      return;
-    }
+    const nameVal = nameSchema.safeParse(name);
+    if (!nameVal.success) return setFormError(nameVal.error.issues[0].message);
 
-    // TODO: replace with real backend call
-    setIsSubmitting(true);
-    setTimeout(() => {
+    const emailVal = emailSchema.safeParse(email);
+    if (!emailVal.success) return setFormError(emailVal.error.issues[0].message);
+
+    const passVal = passwordSchema.safeParse(password);
+    if (!passVal.success) return setFormError(passVal.error.issues[0].message);
+
+    try {
+      setIsSubmitting(true);
+      await Register(name, email, password);
+
+      toast.success("Account created! Please sign in.");
+      setName("");
+      setEmail("");
+      setPassword("");
+
+      setTimeout(() => {
+        setIsSignUp(false);
+      }, 700);
+    } catch (err) {
+      const msg = await getApiError(err, 'Failed to create account.');
+      setFormError(msg);
+      toast.error(msg);
+    } finally {
       setIsSubmitting(false);
-      toast.success("Account created (demo). Sign in to continue.");
-      setIsSignUp(false);
-      navigate("/auth");
-    }, 700);
+    }
   };
 
   return (
@@ -77,8 +95,27 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
+        {/* FIXED: Added missing Name input field */}
         <div>
-          <label className="form-label" htmlFor="signup-email">
+          <label className="form-label hidden" htmlFor="signup-name">
+            Full name
+          </label>
+          <div className="relative">
+            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
+            <input
+              id="signup-name"
+              type="text"
+              autoComplete="name"
+              value={name}
+              onChange={(e) => setName(e.target.value.replace(/[0-9]/g, ""))}
+              placeholder="Your full name"
+              className="input pl-10 pr-3"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="form-label hidden" htmlFor="signup-email">
             Email
           </label>
           <div className="relative">
@@ -88,7 +125,7 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value.trim())}
               placeholder="you@example.com"
               className="input pl-10 pr-3"
             />
@@ -96,7 +133,7 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
         </div>
 
         <div>
-          <label className="form-label" htmlFor="signup-password">
+          <label className="form-label hidden" htmlFor="signup-password">
             Password
           </label>
           <div className="relative">
@@ -107,7 +144,7 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              maxLength={16}
+              maxLength={32}
               placeholder="At least 6 characters"
               className="input pl-10 pr-10"
             />
@@ -122,9 +159,9 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
           </div>
         </div>
 
-        {error && (
+        {formError && (
           <div className="text-status-red text-xs font-medium px-1">
-            {error}
+            {formError}
           </div>
         )}
 
@@ -134,18 +171,34 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
           className="btn btn-primary w-full h-11 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
         >
           {isSubmitting ? "Creating account…" : "Create account"}
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-4 h-4 ml-2" />
         </button>
       </form>
 
-      <div className="mt-6 text-center text-sm text-app-muted md:hidden">
-        Already have an account?{" "}
-        <button
-          onClick={() => setIsSignUp(false)}
-          className="text-app-accent font-semibold hover:underline underline-offset-4"
+      <div className="mt-6 flex flex-col gap-4 text-center text-sm text-app-muted md:hidden">
+        <div>
+          Already have an account?{" "}
+          <button
+            onClick={() => setIsSignUp(false)}
+            className="text-app-accent font-semibold hover:underline underline-offset-4"
+          >
+            Sign in
+          </button>
+        </div>
+        
+        <div className="flex items-center justify-center gap-2 text-app-dim">
+          <span className="h-px w-8 bg-app-line"></span>
+          <span className="text-xs uppercase tracking-widest font-bold">OR</span>
+          <span className="h-px w-8 bg-app-line"></span>
+        </div>
+
+        {/* Added NavLink for guest routing */}
+        <NavLink 
+          to="/" 
+          className="font-medium text-app-text hover:text-app-accent transition-colors"
         >
-          Sign in
-        </button>
+          Explore workspace as guest →
+        </NavLink>
       </div>
     </div>
   );
