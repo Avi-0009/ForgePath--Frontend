@@ -4,10 +4,11 @@ import {
   TerminalSquare, 
   GitPullRequest, 
   Settings, 
-  LogOut, 
-  Hammer 
+  LogOut 
 } from "lucide-react";
 import { useAuthStore } from '../../store/useAuthStore';
+import logo from '../../assets/forgepath.svg';
+
 
 const Sidebar = () => {
   const { user, logout } = useAuthStore();
@@ -23,7 +24,7 @@ const Sidebar = () => {
     <aside className="w-64 h-screen bg-app-panel border-r border-app-line flex-col hidden md:flex shrink-0 sticky top-0">
       <div className="h-16 flex items-center px-6 border-b border-app-line">
         <div className="w-8 h-8 rounded-xl bg-app-accent text-app-accent-ink grid place-items-center mr-3 shadow-sm">
-          <Hammer className="w-4 h-4" />
+          <img src={logo} alt="ForgePath Logo" className="w-8 h-8" />
         </div>
         <span className="font-manrope font-extrabold tracking-tight text-app-text text-lg">
           ForgePath

@@ -1,4 +1,4 @@
-import { Hammer } from "lucide-react";
+import logo from '../../assets/forgepath.svg';
 
 interface AuthVisualProps {
   isSignUp: boolean;
@@ -14,18 +14,15 @@ const AuthVisual = ({ isSignUp, setIsSignUp }: AuthVisualProps) => {
           : "translate-x-0 border-l border-app-line"
       }`}
     >
-      {/* Background Blurs */}
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-app-accent/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-app-accent/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
         <div className="w-16 h-16 rounded-2xl bg-app-icon-bg border border-app-line grid place-items-center mb-8 text-app-accent">
-          <Hammer className="w-8 h-8" />
+          <img src={logo} alt="ForgePath Logo" className="w-15 h-15" />
         </div>
 
-        {/* Text Crossfade Container */}
         <div className="relative w-full h-35">
-          {/* Shown when isSignUp = true — invites user to sign in */}
           <div
             className={`absolute inset-0 flex flex-col items-center transition-all duration-500 transform ${
               !isSignUp
@@ -41,7 +38,6 @@ const AuthVisual = ({ isSignUp, setIsSignUp }: AuthVisualProps) => {
             </p>
           </div>
 
-          {/* Shown when isSignUp = false — invites user to sign up */}
           <div
             className={`absolute inset-0 flex flex-col items-center transition-all duration-500 transform ${
               isSignUp
