@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { User, Lock, ArrowRight, Eye, EyeOff, Hammer } from "lucide-react";
+import { User, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useNavigate, NavLink } from "react-router-dom";
 import { z } from "zod";
 import toast from "react-hot-toast";
 import { Login } from "../../Api/Auth";
 import { getApiError } from "../../utils/apiError";
 import { useAuthStore } from "../../store/useAuthStore";
+import logo from '../../assets/forgepath.svg';
 
 interface LoginFormProps {
   setIsSignUp: (val: boolean) => void;
@@ -75,7 +76,7 @@ const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
 
       <div className="flex md:hidden items-center gap-2 mb-8">
         <div className="w-9 h-9 rounded-xl bg-app-accent text-app-accent-ink grid place-items-center">
-          <Hammer className="w-5 h-5" />
+          <img src={logo} alt="ForgePath Logo" className="w-10 h-10  absolute" />
         </div>
         <div className="font-manrope font-extrabold tracking-tight text-app-text">
           ForgePath

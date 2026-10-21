@@ -5,7 +5,6 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
-  Hammer,
   UserRound,
   AtSign,
 } from "lucide-react";
@@ -14,6 +13,7 @@ import { z } from "zod";
 import toast from "react-hot-toast";
 import { Register } from "../../Api/Auth";
 import { getApiError } from "../../utils/apiError";
+import logo from '../../assets/forgepath.svg';
 
 interface SignupFormProps {
   setIsSignUp: (val: boolean) => void;
@@ -110,7 +110,7 @@ const SignupForm = ({ setIsSignUp }: SignupFormProps) => {
       {/* Mobile-only brand */}
       <div className="flex md:hidden items-center gap-2 mb-8">
         <div className="w-9 h-9 rounded-xl bg-app-accent text-app-accent-ink grid place-items-center">
-          <Hammer className="w-5 h-5" />
+          <img src={logo} alt="ForgePath Logo" className="w-10 h-10 absolute" />
         </div>
         <div className="font-manrope font-extrabold tracking-tight text-app-text">
           ForgePath
