@@ -1,8 +1,8 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, ListTodo, FolderGit, Activity, Search,
   ShieldAlert, GitPullRequest, Beaker, CheckSquare,
-  Map, Settings, ChevronDown
+  Map, Settings, ChevronDown, LogOut
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
 import logo from '../../assets/forgepath.svg';
@@ -13,18 +13,29 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
-  const { user } = useAuthStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    setIsOpen(false);
+  };
+
+  const handleLoginRedirect = () => {
+    setIsOpen(false);
+    navigate('/auth');
+  };
 
   return (
     <aside 
-      className={`fixed inset-y-0 left-0 z-40 w-72 md:w-64 h-screen bg-[#141719] border-r border-app-line flex flex-col shrink-0 transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+      className={`fixed inset-y-0 left-0 z-50 w-72 md:w-64 h-screen bg-[#141719] border-r border-app-line flex flex-col shrink-0 transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
       <div className="pt-6 px-6 pb-4">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl bg-app-accent text-app-accent-ink grid place-items-center shadow-sm">
-            <img src={logo} alt="ForgePath Logo" className="w- h-" />
+            <img src={logo} alt="ForgePath Logo" className="w-10 h-10" />
           </div>
           <div>
             <div className="font-manrope font-extrabold tracking-tight text-app-text text-lg leading-tight">ForgePath</div>
@@ -32,18 +43,24 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           </div>
         </div>
 
-        <button className="w-full flex items-center justify-between p-3 rounded-xl border border-app-line bg-[#1c2124] hover:bg-app-btn transition-colors text-left">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#2a3036] flex items-center justify-center text-xs font-bold text-app-text">
-              {user?.avatar || "FP"}
+        {isAuthenticated ? (
+          <button className="w-full flex items-center justify-between p-3 rounded-xl border border-app-line bg-[#1c2124] hover:bg-app-btn transition-colors text-left">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#2a3036] flex items-center justify-center text-xs font-bold text-app-text uppercase">
+                {user?.name?.charAt(0) || "FP"}
+              </div>
+              <div className="overflow-hidden">
+                <div className="text-sm font-bold text-app-text leading-tight truncate">{user?.name || "Personal workspace"}</div>
+                <div className="text-xs text-app-dim truncate">Local instance · owner</div>
+              </div>
             </div>
-            <div>
-              <div className="text-sm font-bold text-app-text leading-tight">Personal workspace</div>
-              <div className="text-xs text-app-dim">Local instance · owner</div>
-            </div>
-          </div>
-          <ChevronDown className="w-4 h-4 text-app-dim" />
-        </button>
+            <ChevronDown className="w-4 h-4 text-app-dim shrink-0" />
+          </button>
+        ) : (
+          <button onClick={handleLoginRedirect} className="w-full btn btn-primary py-3 flex items-center justify-center gap-2">
+            Sign in to Workspace
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 px-4 overflow-y-auto pb-6 space-y-6">
@@ -93,9 +110,8 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           <div className="text-micro tracking-eyebrow uppercase text-app-dim font-bold mb-2 px-2">System</div>
           <div className="space-y-1">
             <NavLink to="/roadmap" onClick={() => setIsOpen(false)} className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
-
-<Map className="w-4 h-4" />
-<div className="flex items-center gap-3"> Build roadmap</div>
+              <Map className="w-4 h-4" />
+              <div className="flex items-center gap-3"> Build roadmap</div>
               <span className="bg-app-btn text-app-dim text-xs py-0.5 px-2 rounded-full font-bold">12</span>
             </NavLink>
             <NavLink to="/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
@@ -106,6 +122,14 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       </nav>
 
       <div className="p-4 mt-auto">
+        {isAuthenticated && (
+          <button 
+            onClick={handleLogout}
+            className="mb-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-status-red/20 bg-status-red/10 text-status-red hover:bg-status-red/20 transition-colors text-sm font-bold"
+          >
+            <LogOut className="w-4 h-4" /> Sign out
+          </button>
+        )}
         <div className="p-3 rounded-xl border border-app-accent/20 bg-app-accent/5 flex items-start gap-3">
           <div className="w-2 h-2 rounded-full bg-app-accent mt-1.5 shrink-0 animate-pulse"></div>
           <div>
