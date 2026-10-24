@@ -16,7 +16,7 @@ const PageHeader = () => {
     <section className="flex flex-col sm:flex-row sm:items-start justify-between gap-5 mb-7">
       <div className="flex-1 max-w-3xl">
         <div className="text-micro tracking-eyebrow uppercase text-app-dim font-bold mb-1">
-          {currentDate} · {isAuthenticated ? `${user?.name?.toUpperCase()}` : 'PERSONAL WORKSPACE'}
+          {currentDate}
         </div>
         <h1 className="font-manrope text-2xl sm:text-3xl font-extrabold tracking-tight text-app-text m-0 mb-1.5">
           {isAuthenticated ? `Welcome back, ${user?.name?.split(' ')[0]}.` : "Your engineering command center."}

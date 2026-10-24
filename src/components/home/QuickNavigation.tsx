@@ -1,4 +1,4 @@
-import { Search, ArrowLeftRight, ListChecks, ArrowRight, ArrowUpRight } from "lucide-react"
+import { Search, ArrowLeftRight, ListChecks, ArrowUpRight } from "lucide-react"
 
 const QuickNavigation = () => {
   return (
@@ -10,10 +10,6 @@ const QuickNavigation = () => {
           </h2>
           <div className="text-2xs text-app-muted mt-0.5">Jump into an engineering surface</div>
         </div>
-        <button className="btn btn-ghost min-h-7.5! px-2.5! py-1! text-2xs!">
-          12-chunk roadmap
-          <ArrowRight size={12} />
-        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">

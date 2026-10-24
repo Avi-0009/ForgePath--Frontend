@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, ListTodo, FolderGit, Activity, Search,
   ShieldAlert, GitPullRequest, Beaker, CheckSquare,
-  Map, Settings, ChevronDown, LogOut
+  Map, Settings, ChevronDown, LogOut, ChevronUp
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
 import logo from '../../assets/forgepath.svg';
@@ -15,14 +16,21 @@ interface SidebarProps {
 const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const { user, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
+  
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const closeSidebar = () => {
+    setIsOpen(false);
+    setIsProfileOpen(false);
+  }
 
   const handleLogout = () => {
     logout();
-    setIsOpen(false);
+    closeSidebar();
   };
 
   const handleLoginRedirect = () => {
-    setIsOpen(false);
+    closeSidebar();
     navigate('/auth');
   };
 
@@ -39,25 +47,68 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           </div>
           <div>
             <div className="font-manrope font-extrabold tracking-tight text-app-text text-lg leading-tight">ForgePath</div>
-            <div className="text-micro uppercase tracking-widest text-app-dim font-bold">Engineering Agent</div>
           </div>
         </div>
 
         {isAuthenticated ? (
-          <button className="w-full flex items-center justify-between p-3 rounded-xl border border-app-line bg-[#1c2124] hover:bg-app-btn transition-colors text-left">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#2a3036] flex items-center justify-center text-xs font-bold text-app-text uppercase">
-                {user?.name?.charAt(0) || "FP"}
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => setIsProfileOpen((prev) => !prev)}
+              className={`w-full flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
+                isProfileOpen
+                  ? "border-app-accent/30 bg-[#202528]"
+                  : "border-app-line bg-[#1c2124] hover:bg-app-btn hover:border-app-line-hover"
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 shrink-0 rounded-lg bg-[#2a3036] border border-app-line flex items-center justify-center text-sm font-bold text-app-accent uppercase">
+                  {user?.name?.charAt(0) || "F"}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-app-text leading-tight truncate">
+                    {user?.name || "Personal workspace"}
+                  </div>
+                  <div className="text-xs text-app-dim mt-1 truncate">
+                    Local instance
+                  </div>
+                </div>
               </div>
+              {isProfileOpen ? (
+                <ChevronUp className="w-4 h-4 text-app-dim shrink-0" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-app-dim shrink-0" />
+              )}
+            </button>
+
+            <div
+              className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
+                isProfileOpen
+                  ? "grid-rows-[1fr] opacity-100"
+                  : "grid-rows-[0fr] opacity-0 pointer-events-none"
+              }`}
+            >
               <div className="overflow-hidden">
-                <div className="text-sm font-bold text-app-text leading-tight truncate">{user?.name || "Personal workspace"}</div>
-                <div className="text-xs text-app-dim truncate">Local instance · owner</div>
+                <div className="rounded-xl border border-app-line bg-[#191d20] p-1.5 mt-1 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    tabIndex={isProfileOpen ? 0 : -1}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-status-red bg-status-red/5 hover:bg-status-red/15 border border-transparent hover:border-status-red/20 transition-all duration-200"
+                  >
+                    <LogOut className="w-4 h-4 shrink-0" />
+                    <span>Sign out</span>
+                  </button>
+                </div>
               </div>
             </div>
-            <ChevronDown className="w-4 h-4 text-app-dim shrink-0" />
-          </button>
+          </div>
         ) : (
-          <button onClick={handleLoginRedirect} className="w-full btn btn-primary py-3 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={handleLoginRedirect}
+            className="w-full btn btn-primary py-3 flex items-center justify-center gap-2"
+          >
             Sign in to Workspace
           </button>
         )}
@@ -109,11 +160,6 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         <div>
           <div className="text-micro tracking-eyebrow uppercase text-app-dim font-bold mb-2 px-2">System</div>
           <div className="space-y-1">
-            <NavLink to="/roadmap" onClick={() => setIsOpen(false)} className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
-              <Map className="w-4 h-4" />
-              <div className="flex items-center gap-3"> Build roadmap</div>
-              <span className="bg-app-btn text-app-dim text-xs py-0.5 px-2 rounded-full font-bold">12</span>
-            </NavLink>
             <NavLink to="/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
               <Settings className="w-4 h-4" /> Settings
             </NavLink>
@@ -121,20 +167,14 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         </div>
       </nav>
 
-      <div className="p-4 mt-auto">
-        {isAuthenticated && (
-          <button 
-            onClick={handleLogout}
-            className="mb-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-status-red/20 bg-status-red/10 text-status-red hover:bg-status-red/20 transition-colors text-sm font-bold"
-          >
-            <LogOut className="w-4 h-4" /> Sign out
-          </button>
-        )}
+      <div className="p-4 mt-auto shrink-0">
         <div className="p-3 rounded-xl border border-app-accent/20 bg-app-accent/5 flex items-start gap-3">
-          <div className="w-2 h-2 rounded-full bg-app-accent mt-1.5 shrink-0 animate-pulse"></div>
+          <div className="w-2 h-2 rounded-full bg-app-accent mt-1.5 shrink-0 animate-pulse" />
           <div>
             <div className="text-sm font-bold text-app-text">Private · local-only</div>
-            <div className="text-xs text-app-muted mt-0.5 leading-relaxed">Listening on this device. No public workspace.</div>
+            <div className="text-xs text-app-muted mt-0.5 leading-relaxed">
+              Listening on this device. No public workspace.
+            </div>
           </div>
         </div>
       </div>

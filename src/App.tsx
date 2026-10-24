@@ -5,6 +5,7 @@ import Sidebar from './components/layout/Sidebar'
 import { useState } from 'react'
 import { HelpCircle, Menu, User } from 'lucide-react'
 import { useAuthStore } from './store/useAuthStore'
+import SettingsPage from './pages/SettingsPage'
 
 const PublicOnlyRoute = () => {
   const { isAuthenticated } = useAuthStore();
@@ -42,7 +43,9 @@ const MainLayout = () => {
             <button className="w-10 h-10 rounded-lg border border-app-line bg-[#1c2124] flex items-center justify-center text-app-muted hover:text-app-text">
               <HelpCircle className="w-4 h-4" />
             </button>
-            <button className="w-10 h-10 rounded-lg border border-app-line bg-[#1c2124] flex items-center justify-center text-app-muted hover:text-app-text">
+            <button 
+              className="w-10 h-10 rounded-lg border border-app-line bg-[#1c2124] flex items-center justify-center text-app-muted hover:text-app-text"
+            >
               <User className="w-4 h-4" />
             </button>
           </div>
@@ -64,6 +67,7 @@ const App = () => {
       
       <Route element={<MainLayout />}>
         <Route path='/' element={<HomePage/>} />
+        <Route path='/settings' element={<SettingsPage/>} />
       </Route>
     </Routes>
   )
