@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, ListTodo, FolderGit, Activity, Search,
   ShieldAlert, GitPullRequest, Beaker, CheckSquare,
-  Map, Settings, ChevronDown, LogOut, ChevronUp
+  Settings, ChevronDown, LogOut, ChevronUp
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
 import logo from '../../assets/forgepath.svg';
@@ -35,9 +35,9 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   };
 
   return (
-    <aside 
-      className={`fixed inset-y-0 left-0 z-50 w-72 md:w-64 h-screen bg-[#141719] border-r border-app-line flex flex-col shrink-0 transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
+    <aside
+      className={`fixed inset-y-0 left-0 z-50 w-72 md:w-64 h-dvh bg-[#141719] border-r border-app-line flex flex-col shrink-0 transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >
       <div className="pt-6 px-6 pb-4">
