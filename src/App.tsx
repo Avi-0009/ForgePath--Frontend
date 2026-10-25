@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { HelpCircle, Menu, User } from 'lucide-react'
 import { useAuthStore } from './store/useAuthStore'
 import SettingsPage from './pages/SettingsPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
 
 const PublicOnlyRoute = () => {
   const { isAuthenticated } = useAuthStore();
@@ -63,6 +64,7 @@ const App = () => {
     <Routes>
       <Route element={<PublicOnlyRoute />}>
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage/>} />
       </Route>
       
       <Route element={<MainLayout />}>

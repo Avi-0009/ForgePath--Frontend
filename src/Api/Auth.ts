@@ -58,3 +58,27 @@ export const Login = async (
     })
     .json<LoginResponse>();
 };
+
+export const RequestPasswordReset = async (email: string) => {
+  return apiClient
+    .post("auth/forgot-password", {
+      json: {email},
+    })
+    .json();
+}
+
+export const ResetPassword = async (
+  email: string,
+  otp: string,
+  newPassword: string,
+) => {
+  return apiClient
+    .post("auth/reset-password", {
+      json: {
+        email, 
+        otp,
+        new_password: newPassword,
+      },
+    })
+    .json();
+}

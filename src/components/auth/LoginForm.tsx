@@ -141,16 +141,6 @@ const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
           </div>
         </div>
 
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => toast("Password reset coming soon.")}
-            className="text-xs font-medium text-app-muted hover:text-app-accent transition-colors"
-          >
-            Forgot password?
-          </button>
-        </div>
-
         {formError && (
           <div className="text-status-red text-xs font-medium px-1">
             {formError}
@@ -167,9 +157,13 @@ const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
         </button>
       </form>
 
+      <div className="flex justify-center items-center mt-6 mb-1.5">
+        <NavLink to="/forgot-password" className="text-xs text-app-accent hover:underline font-medium">Forgot Password?</NavLink>
+      </div>
+
       <div className="mt-6 flex flex-col gap-4 text-center text-sm text-app-muted md:hidden">
         <div>
-          Don&apos;t have an account?{" "}
+          Don't have an account?{" "}
           <button
             onClick={() => setIsSignUp(true)}
             className="text-app-accent font-semibold hover:underline underline-offset-4"
