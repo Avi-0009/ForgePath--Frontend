@@ -3,10 +3,11 @@ import HomePage from "./layouts/HomePage"
 import AuthPage from './pages/AuthPage'
 import Sidebar from './components/layout/Sidebar'
 import { useState } from 'react'
-import { HelpCircle, Menu, User } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { useAuthStore } from './store/useAuthStore'
 import SettingsPage from './pages/SettingsPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ProfileDropdown from './components/layout/ProfileDropdown'
 
 const PublicOnlyRoute = () => {
   const { isAuthenticated } = useAuthStore();
@@ -17,47 +18,45 @@ const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen w-full bg-app-bg overflow-hidden relative">
-
+    <div className="relative flex h-screen w-full overflow-hidden bg-app-bg">
       {isSidebarOpen && (
-        <div
-          className='fixed inset-0 bg-black/80 z-40 md:hidden transition-opacity'
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="fixed inset-0 z-40 bg-black/80 transition-opacity md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
-      <main className="flex-1 overflow-y-auto flex flex-col relative">
-        <header className="md:hidden flex items-center justify-between p-4 border-b border-app-line bg-[#141719] z-20">
+      <main className="relative flex flex-1 flex-col overflow-y-auto">
+        <header className="z-20 flex items-center justify-between border-b border-app-line bg-[#141719] p-4 md:hidden">
           <button
+            type="button"
+            aria-label="Open navigation menu"
             onClick={() => setIsSidebarOpen(true)}
-            className="w-10 h-10 rounded-lg border border-app-line bg-[#1c2124] flex items-center justify-center text-app-muted hover:text-app-text"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-app-line bg-[#1c2124] text-app-muted transition-colors hover:text-app-text"
           >
-            <Menu className='w-5 h-5'/>
+            <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 h-10 rounded-lg border border-app-line bg-[#1c2124] text-xs font-medium text-app-muted">
-              <div className="w-1.5 h-1.5 rounded-full bg-app-accent"></div>
+            <div className="flex h-10 items-center gap-2 rounded-lg border border-app-line bg-[#1c2124] px-3 text-xs font-medium text-app-muted">
+              <span className="h-1.5 w-1.5 rounded-full bg-app-accent" />
               Running locally
             </div>
-            <button className="w-10 h-10 rounded-lg border border-app-line bg-[#1c2124] flex items-center justify-center text-app-muted hover:text-app-text">
-              <HelpCircle className="w-4 h-4" />
-            </button>
-            <button 
-              className="w-10 h-10 rounded-lg border border-app-line bg-[#1c2124] flex items-center justify-center text-app-muted hover:text-app-text"
-            >
-              <User className="w-4 h-4" />
-            </button>
+            <ProfileDropdown />
           </div>
         </header>
-        <div className='p-4 sm:p-8 flex-1'>
+
+        <div className="flex-1 p-4 sm:p-8">
           <Outlet />
         </div>
       </main>
     </div>
-  )
-}
+  );
+};
+
 
 const App = () => {
   return (

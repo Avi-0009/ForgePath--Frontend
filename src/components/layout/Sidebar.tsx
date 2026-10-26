@@ -1,9 +1,8 @@
-import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, ListTodo, FolderGit, Activity, Search,
   ShieldAlert, GitPullRequest, Beaker, CheckSquare,
-  Settings, ChevronDown, LogOut, ChevronUp
+  Settings
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
 import logo from '../../assets/forgepath.svg';
@@ -14,20 +13,13 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
   
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const closeSidebar = () => {
     setIsOpen(false);
-    setIsProfileOpen(false);
   }
-
-  const handleLogout = () => {
-    logout();
-    closeSidebar();
-  };
 
   const handleLoginRedirect = () => {
     closeSidebar();
@@ -51,58 +43,24 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         </div>
 
         {isAuthenticated ? (
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => setIsProfileOpen((prev) => !prev)}
-              className={`w-full flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
-                isProfileOpen
-                  ? "border-app-accent/30 bg-[#202528]"
-                  : "border-app-line bg-[#1c2124] hover:bg-app-btn hover:border-app-line-hover"
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 shrink-0 rounded-lg bg-[#2a3036] border border-app-line flex items-center justify-center text-sm font-bold text-app-accent uppercase">
-                  {user?.name?.charAt(0) || "F"}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-app-text leading-tight truncate">
-                    {user?.name || "Personal workspace"}
-                  </div>
-                  <div className="text-xs text-app-dim mt-1 truncate">
-                    Local instance
-                  </div>
-                </div>
+          <NavLink
+            to="/profile"
+            className="w-full flex items-center justify-between gap-3 p-3 rounded-xl border border-app-line bg-[#1c2124] hover:bg-app-btn hover:border-app-line-hover text-left transition-colors"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 shrink-0 rounded-lg bg-[#2a3036] border border-app-line flex items-center justify-center text-sm font-bold text-app-accent uppercase">
+                {user?.name?.charAt(0) || "F"}
               </div>
-              {isProfileOpen ? (
-                <ChevronUp className="w-4 h-4 text-app-dim shrink-0" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-app-dim shrink-0" />
-              )}
-            </button>
-
-            <div
-              className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
-                isProfileOpen
-                  ? "grid-rows-[1fr] opacity-100"
-                  : "grid-rows-[0fr] opacity-0 pointer-events-none"
-              }`}
-            >
-              <div className="overflow-hidden">
-                <div className="rounded-xl border border-app-line bg-[#191d20] p-1.5 mt-1 shadow-lg">
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    tabIndex={isProfileOpen ? 0 : -1}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-status-red bg-status-red/5 hover:bg-status-red/15 border border-transparent hover:border-status-red/20 transition-all duration-200"
-                  >
-                    <LogOut className="w-4 h-4 shrink-0" />
-                    <span>Sign out</span>
-                  </button>
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-app-text leading-tight truncate">
+                  {user?.name || "Personal workspace"}
+                </div>
+                <div className="text-xs text-app-dim mt-1 truncate">
+                  Local instance
                 </div>
               </div>
             </div>
-          </div>
+          </NavLink>
         ) : (
           <button
             type="button"
