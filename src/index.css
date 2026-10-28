@@ -91,6 +91,26 @@
 }
 
 @layer base {
+  :root {
+    --diff-bg: var(--color-app-panel);
+    --diff-text: var(--color-app-text);
+    
+    --diff-added-bg: rgba(158, 230, 179, 0.12);    /* status-green */
+    --diff-added-text: var(--color-status-green);
+    --diff-removed-bg: rgba(255, 136, 136, 0.12);  /* status-red */
+    --diff-removed-text: var(--color-status-red);
+    
+    --diff-word-added: rgba(158, 230, 179, 0.25);
+    --diff-word-removed: rgba(255, 136, 136, 0.25);
+    
+    --diff-gutter-added: rgba(158, 230, 179, 0.05);
+    --diff-gutter-removed: rgba(255, 136, 136, 0.05);
+    
+    --diff-gutter-bg: var(--color-app-bg);
+    --diff-highlight-bg: var(--color-app-panel2);
+    --diff-gutter-text: var(--color-app-dim);
+  }
+
   body {
     @apply m-0 bg-app-bg text-app-text text-sm leading-relaxed font-sans;
   }

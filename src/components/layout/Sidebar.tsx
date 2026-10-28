@@ -2,7 +2,8 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, ListTodo, FolderGit, Activity, Search,
   ShieldAlert, GitPullRequest, Beaker, CheckSquare,
-  Settings
+  Settings,
+  FolderKanban
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
 import logo from '../../assets/forgepath.svg';
@@ -80,6 +81,22 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
             <NavLink to="/" onClick={() => setIsOpen(false)} className={({isActive}) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-app-accent/10 text-app-accent" : "text-app-muted hover:bg-app-btn hover:text-app-text"}`}>
               <LayoutDashboard className="w-4 h-4" /> Overview
             </NavLink>
+
+            <NavLink
+              to="/workspace"
+              onClick={() => setIsOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                  isActive
+                    ? "bg-app-accent/10 text-app-accent font-semibold"
+                    : "text-app-dim hover:bg-app-btn hover:text-app-text"
+                }`
+              }
+            >
+              <FolderKanban className="w-5 h-5" />
+              <span>Workspace</span>
+            </NavLink>
+            
             <NavLink to="/tasks" onClick={() => setIsOpen(false)} className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
               <div className="flex items-center gap-3"><ListTodo className="w-4 h-4" /> Tasks</div>
               <span className="bg-app-btn text-app-dim text-xs py-0.5 px-2 rounded-full font-bold">4</span>

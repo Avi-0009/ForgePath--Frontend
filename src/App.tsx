@@ -9,6 +9,7 @@ import SettingsPage from './pages/SettingsPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ProfileDropdown from './components/layout/ProfileDropdown'
 import ProfilePage from './pages/ProfilePage'
+import WorkspacePage from './pages/WorkspacePage'
 
 const PublicOnlyRoute = () => {
   const { isAuthenticated } = useAuthStore();
@@ -71,6 +72,7 @@ const App = () => {
         <Route path='/' element={<HomePage/>} />
         <Route path='/profile' element={<ProfilePage/>} />
         <Route path='/settings' element={<SettingsPage/>} />
+        <Route path='/workspace' element={<WorkspacePage/>} />
       </Route>
     </Routes>
   )

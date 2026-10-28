@@ -5,7 +5,7 @@ const API_BASE_URL = (
   `${window.location.protocol}//${window.location.hostname}:8000/api/v1`
 ).replace(/\/+$/, "");
 
-const apiClient = ky.create({
+export const apiClient = ky.create({
   prefix: API_BASE_URL,
   credentials: "include",
 });
