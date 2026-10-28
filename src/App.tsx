@@ -8,6 +8,7 @@ import { useAuthStore } from './store/useAuthStore'
 import SettingsPage from './pages/SettingsPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ProfileDropdown from './components/layout/ProfileDropdown'
+import ProfilePage from './pages/ProfilePage'
 
 const PublicOnlyRoute = () => {
   const { isAuthenticated } = useAuthStore();
@@ -30,7 +31,7 @@ const MainLayout = () => {
 
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
-      <main className="relative flex flex-1 flex-col overflow-y-auto">
+      <main className="relative flex flex-1 flex-col overflow-y-auto scrollbar-none">
         <header className="z-20 flex items-center justify-between border-b border-app-line bg-[#141719] p-4 md:hidden">
           <button
             type="button"
@@ -68,6 +69,7 @@ const App = () => {
       
       <Route element={<MainLayout />}>
         <Route path='/' element={<HomePage/>} />
+        <Route path='/profile' element={<ProfilePage/>} />
         <Route path='/settings' element={<SettingsPage/>} />
       </Route>
     </Routes>

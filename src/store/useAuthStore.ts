@@ -7,6 +7,7 @@ export interface User {
   username: string;
   email: string;
   avatar?: string;
+  is_email_verified?: boolean;
 }
 
 interface AuthState {
@@ -16,6 +17,7 @@ interface AuthState {
 
   login: (user: User, token: string) => void;
   logout: () => void;
+  updateUser: (data: Partial<User>) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -38,6 +40,11 @@ export const useAuthStore = create<AuthState>()(
           token: null,
           isAuthenticated: false,
         }),
+        
+      updateUser: (data) => 
+        set((state) => ({
+          user: state.user ? { ...state.user, ...data } : null
+        })),
     }),
     {
       name: "forgepath-auth",

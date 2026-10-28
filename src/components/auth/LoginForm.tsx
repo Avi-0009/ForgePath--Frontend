@@ -48,6 +48,7 @@ const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
           name: user.full_name,
           username: user.username,
           email: user.email,
+          is_email_verified: user.is_email_verified,
           avatar:
             user.full_name
               .trim()

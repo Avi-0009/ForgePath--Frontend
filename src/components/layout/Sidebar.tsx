@@ -45,6 +45,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         {isAuthenticated ? (
           <NavLink
             to="/profile"
+            onClick={() => setIsOpen(false)}
             className="w-full flex items-center justify-between gap-3 p-3 rounded-xl border border-app-line bg-[#1c2124] hover:bg-app-btn hover:border-app-line-hover text-left transition-colors"
           >
             <div className="flex items-center gap-3 min-w-0">
@@ -72,7 +73,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         )}
       </div>
 
-      <nav className="flex-1 px-4 overflow-y-auto pb-6 space-y-6">
+      <nav className="flex-1 px-4 overflow-y-auto pb-6 space-y-6 scrollbar-thumb-app-dim2">
         <div>
           <div className="text-micro tracking-eyebrow uppercase text-app-dim font-bold mb-2 px-2">Workspace</div>
           <div className="space-y-1">

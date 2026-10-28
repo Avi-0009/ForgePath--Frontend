@@ -82,3 +82,44 @@ export const ResetPassword = async (
     })
     .json();
 }
+
+export const RequestEmailVerification = async (token: string) => {
+  return apiClient
+    .post("auth/email-verification/request", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+    .json();
+};
+
+export const VerifyEmailOtp = async (token: string, otp: string) => {
+  return apiClient
+    .post("auth/email-verification/verify", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      json: { otp }
+    })
+    .json();
+};
+
+export const UpdateProfile = async (
+  token: string, 
+  data: { name: string; username: string; email: string }
+) => {
+  const response = await fetch("auth/me", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update profile");
+  }
+
+  return response.json();
+};
