@@ -8,6 +8,8 @@ const API_BASE_URL = (
 export const apiClient = ky.create({
   prefix: API_BASE_URL,
   credentials: "include",
+  retry: 0,
+  timeout: 20_000,
 });
 
 export interface UserResponse {
@@ -59,6 +61,10 @@ export const Login = async (
     .json<LoginResponse>();
 };
 
+export const Logout = async () : Promise<void> => {
+  await apiClient.post("auth/logout");
+};
+
 export const RequestPasswordReset = async (email: string) => {
   return apiClient
     .post("auth/forgot-password", {
@@ -105,16 +111,16 @@ export const VerifyEmailOtp = async (token: string, otp: string) => {
 };
 
 export const UpdateProfile = async (
-  token: string, 
-  data: { name: string; username: string; email: string }
+  token: string,
+  data: { name: string; username: string; email: string },
 ) => {
   const response = await fetch("auth/me", {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
   });
 
   if (!response.ok) {

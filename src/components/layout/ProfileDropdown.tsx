@@ -1,11 +1,12 @@
-
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
 import { User, Settings, LogOut } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
+import { Logout } from "../../Api/Auth";
 
 const ProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -23,15 +24,21 @@ const ProfileDropdown = () => {
     };
 
     document.addEventListener("pointerdown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("pointerdown", handleClickOutside);
-    };
+    return () => document.removeEventListener("pointerdown", handleClickOutside);
   }, [isOpen]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (isSigningOut) return;
+
     setIsOpen(false);
-    logout();
+    setIsSigningOut(true);
+
+    try {
+      await Logout();
+    } finally {
+      logout();
+      setIsSigningOut(false);
+    }
   };
 
   const handleSignIn = () => {
@@ -73,12 +80,14 @@ const ProfileDropdown = () => {
             >
               <NavLink
                 to="/profile"
+                role="menuitem"
                 onClick={() => setIsOpen(false)}
-                className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-app-text hover:bg-[#1c2124] transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-app-text hover:bg-[#1c2124] transition-colors"
               >
                 <User className="w-4 h-4 text-app-dim" />
                 My profile
               </NavLink>
+              
               <NavLink
                 to="/settings"
                 role="menuitem"
@@ -94,11 +103,12 @@ const ProfileDropdown = () => {
               <button
                 type="button"
                 role="menuitem"
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-status-red hover:bg-status-red/10 transition-colors"
+                onClick={() => void handleLogout()}
+                disabled={isSigningOut}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-status-red hover:bg-status-red/10 transition-colors disabled:cursor-wait disabled:opacity-60"
               >
                 <LogOut className="w-4 h-4 shrink-0" />
-                Sign out
+                {isSigningOut ? "Signing out…" : "Sign out"}
               </button>
             </div>
           )}
