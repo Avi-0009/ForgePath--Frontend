@@ -90,6 +90,7 @@ const WorkspacePage = () => {
     const loadingToast = toast.loading(`Reviewing ${fileName}...`);
 
     setIsReviewing(true);
+    toast.loading(`Analyzing ${selectedFile.split('/').pop()} via backend AI engine...`, { id: "review-loading" });
 
     try {
       const response = await InitiateCodeReview(token, {
@@ -97,10 +98,12 @@ const WorkspacePage = () => {
       });
 
       setReviewResult(response);
+      toast.dismiss("review-loading");
       toast.success("Code review complete");
-    } catch (error) {
-      console.error("Code review request failed:", error);
-      toast.error("Code review failed. Check the backend/API configuration.");
+    } catch (error: any) {
+      toast.dismiss("review-loading");
+      const errorMessage = error?.response?.data?.detail || "Failed to communicate with backend review service.";
+      toast.error(errorMessage);
     } finally {
       toast.dismiss(loadingToast);
       setIsReviewing(false);
@@ -113,10 +116,12 @@ const WorkspacePage = () => {
     }
 
     setIsApplying(true);
+    toast.loading("Applying patch and creating backup...", { id: "apply-loading" });
 
     try {
       await ApplyCodePatch(token, reviewResult.id);
-      toast.success("Patch applied successfully");
+      toast.dismiss("apply-loading");
+      toast.success("Patch applied successfully and backup created!");
       setReviewResult(null);
     } catch (error) {
       console.error("Patch application failed:", error);
