@@ -7,32 +7,39 @@ export interface Repository {
   path: string;
   file_count: number;
   status: "indexed" | "indexing" | "refresh_needed" | "error";
-  last_indexed: string;
-  tech_stack: string[];
+  last_indexed: string | null;
+  tech_stack?: string[];
 }
 
 export interface IngestionConfig {
-  repo_id: string;
   exclude_patterns: string[];
   max_file_size_kb: number;
 }
 
 export const GetRepositories = async (token: string): Promise<Repository[]> => {
-  return apiClient.get("repositories", {
+  return apiClient.get("workspaces", {
     headers: { Authorization: `Bearer ${token}` }
   }).json<Repository[]>();
 };
 
-export const AddRepository = async (token: string, path: string, sourceType: "local" | "git"): Promise<Repository> => {
-  return apiClient.post("repositories", {
+export const AddRepository = async (
+  token: string, 
+  path: string, 
+  sourceType: "local" | "git"
+): Promise<Repository> => {
+  return apiClient.post("workspace", {
     headers: { Authorization: `Bearer ${token}` },
     json: { path, source_type: sourceType }
   }).json<Repository>();
 };
 
-export const TriggerIndexing = async (token: string, repoId: string, config: IngestionConfig) => {
-  return apiClient.post(`repositories/${repoId}/index`, {
+export const TriggerIndexing = async (
+  token: string, 
+  workspaceId: string,
+  config?: IngestionConfig
+) => {
+  return apiClient.post(`workspace/${workspaceId}/index`, {
     headers: { Authorization: `Bearer ${token}` },
-    json: config
+    json: config || { exclude_patterns: [".env", "node_modules", ".git", "dist"], max_file_size_kb: 1024 }
   }).json();
 };

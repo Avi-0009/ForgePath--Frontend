@@ -7,6 +7,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { HTTPError } from "ky";
 
 import { useAuthStore } from "../store/useAuthStore";
 import { GetWorkspaceTree } from "../Api/Workspace";
@@ -15,7 +16,7 @@ import {
   InitiateCodeReview,
   ApplyCodePatch,
 } from "../Api/Review";
-import type { CodeReviewResponse } from "../Api/Review";
+import type { CodeReviewFileResponse } from "../Api/Review";
 import FileTree from "../components/workspace/FileTree";
 import DiffViewer from "../components/workspace/DiffViewer";
 
@@ -30,8 +31,7 @@ const WorkspacePage = () => {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [isReviewing, setIsReviewing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
-  const [reviewResult, setReviewResult] =
-    useState<CodeReviewResponse | null>(null);
+  const [reviewResult, setReviewResult] = useState<CodeReviewFileResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,17 +49,15 @@ const WorkspacePage = () => {
 
       try {
         const data = await GetWorkspaceTree(token);
-
         if (!cancelled) {
           setTreeData(data);
         }
       } catch (error) {
         console.error("Failed to load workspace tree:", error);
-
         if (!cancelled) {
           setTreeData(null);
           setTreeError(
-            "Couldn't load your workspaces. Check that the backend is running and your login session is valid.",
+            "Couldn't load your workspaces. Check that the backend is running and your login session is valid."
           );
         }
       } finally {
@@ -82,50 +80,67 @@ const WorkspacePage = () => {
   };
 
   const handleLaunchReview = async () => {
-    if (!selectedFile || !token || isReviewing) {
-      return;
-    }
+    if (!selectedFile || !token || !treeData) return;
 
     const fileName = selectedFile.split(/[\\/]/).pop() ?? selectedFile;
-    const loadingToast = toast.loading(`Reviewing ${fileName}...`);
-
+    const loadingToast = toast.loading(`Analyzing ${fileName}...`);
     setIsReviewing(true);
-    toast.loading(`Analyzing ${selectedFile.split('/').pop()} via backend AI engine...`, { id: "review-loading" });
 
     try {
+      const relativePath = selectedFile
+        .replace(treeData.path, "")
+        .replace(/^[/\\]+/, "");
+
       const response = await InitiateCodeReview(token, {
-        file_path: selectedFile,
+        workspace_root: treeData.path,
+        relative_path: relativePath,
+        review_mode: "general",
       });
 
       setReviewResult(response);
-      toast.dismiss("review-loading");
-      toast.success("Code review complete");
-    } catch (error: any) {
-      toast.dismiss("review-loading");
-      const errorMessage = error?.response?.data?.detail || "Failed to communicate with backend review service.";
-      toast.error(errorMessage);
+      toast.success("Code review complete", { id: loadingToast });
+    } catch (error: unknown) {
+      console.error("Code review failed:", error);
+
+      if (error instanceof HTTPError) {
+        const errorData = error.data as {
+          detail?: unknown;
+          message?: string;
+        } | undefined;
+
+        const detail = errorData?.detail ?? errorData?.message;
+
+        toast.error(
+          typeof detail === "string"
+            ? detail
+            : detail
+              ? JSON.stringify(detail)
+              : `Request failed (${error.response.status})`,
+          { id: loadingToast, duration: 6000 }
+        );
+      } else {
+        toast.error("Failed to connect to backend.", {
+          id: loadingToast,
+        });
+      }
     } finally {
-      toast.dismiss(loadingToast);
       setIsReviewing(false);
     }
   };
 
   const handleApprovePatch = async () => {
-    if (!reviewResult || !token || isApplying) {
-      return;
-    }
+    if (!reviewResult || !token || isApplying) return;
 
     setIsApplying(true);
     toast.loading("Applying patch and creating backup...", { id: "apply-loading" });
 
     try {
-      await ApplyCodePatch(token, reviewResult.id);
-      toast.dismiss("apply-loading");
-      toast.success("Patch applied successfully and backup created!");
+      await ApplyCodePatch(token, reviewResult.relative_path);
+      toast.success("Patch applied successfully and backup created!", { id: "apply-loading" });
       setReviewResult(null);
     } catch (error) {
       console.error("Patch application failed:", error);
-      toast.error("Failed to apply the patch.");
+      toast.error("Failed to apply the patch.", { id: "apply-loading" });
     } finally {
       setIsApplying(false);
     }
@@ -136,8 +151,22 @@ const WorkspacePage = () => {
     toast.success("Patch dismissed");
   };
 
-  const fileName =
-    selectedFile?.split(/[\\/]/).pop() ?? selectedFile;
+  const fileName = selectedFile?.split(/[\\/]/).pop() ?? selectedFile;
+
+  const findNodeByPath = (
+    node: FileNode,
+    targetPath: string
+  ): FileNode | null => {
+    if (node.path === targetPath) return node;
+
+    for (const child of node.children ?? []) {
+      const found = findNodeByPath(child, targetPath);
+
+      if (found) return found;
+    }
+
+    return null;
+  };
 
   return (
     <div className="flex h-full min-h-125 w-full animate-in fade-in duration-300 bg-app-bg text-app-text">
@@ -231,8 +260,8 @@ const WorkspacePage = () => {
       >
         {reviewResult ? (
           <DiffViewer
-            originalCode={reviewResult.original_content}
-            newCode={reviewResult.reviewed_content}
+            originalCode={""}
+            newCode={""}
             onApprove={handleApprovePatch}
             onReject={handleRejectPatch}
             isApplying={isApplying}
