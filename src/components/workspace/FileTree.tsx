@@ -5,7 +5,7 @@ import type { FileNode } from "../../Api/Workspace";
 interface FileTreeNodeProps {
   node: FileNode;
   level?: number;
-  onSelectFile?: (path: string) => void;
+  onSelectFile?: (file: FileNode) => void;
 }
 
 const FileTreeNode = ({ node, level = 0, onSelectFile }: FileTreeNodeProps) => {
@@ -16,7 +16,7 @@ const FileTreeNode = ({ node, level = 0, onSelectFile }: FileTreeNodeProps) => {
     if (isDir) {
       setIsOpen(!isOpen);
     } else if (onSelectFile) {
-      onSelectFile(node.path);
+      onSelectFile(node);
     }
   };
 

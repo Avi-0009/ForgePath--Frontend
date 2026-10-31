@@ -28,7 +28,7 @@ const WorkspacePage = () => {
   const [treeError, setTreeError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [isReviewing, setIsReviewing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [reviewResult, setReviewResult] = useState<CodeReviewFileResponse | null>(null);
@@ -74,50 +74,67 @@ const WorkspacePage = () => {
     };
   }, [token, reloadKey]);
 
-  const handleSelectFile = (path: string) => {
-    setSelectedFile(path || null);
+  const handleSelectFile = (file: FileNode | null) => {
+    setSelectedFile(file);
     setReviewResult(null);
   };
 
   const handleLaunchReview = async () => {
-    if (!selectedFile || !token || !treeData) return;
+    if (!selectedFile || !token) return;
 
-    const fileName = selectedFile.split(/[\\/]/).pop() ?? selectedFile;
+    if (
+      selectedFile.is_dir ||
+      !selectedFile.workspace_root ||
+      !selectedFile.relative_path
+    ) {
+      toast.error("Invalid file selection. Please select a file inside a workspace.");
+      return;
+    }
+
+    const fileName = selectedFile.name;
     const loadingToast = toast.loading(`Analyzing ${fileName}...`);
+
     setIsReviewing(true);
 
     try {
-      const relativePath = selectedFile
-        .replace(treeData.path, "")
-        .replace(/^[/\\]+/, "");
-
       const response = await InitiateCodeReview(token, {
-        workspace_root: treeData.path,
-        relative_path: relativePath,
+        workspace_root: selectedFile.workspace_root,
+        relative_path: selectedFile.relative_path,
         review_mode: "general",
       });
 
       setReviewResult(response);
-      toast.success("Code review complete", { id: loadingToast });
+
+      toast.success("Code review complete", {
+        id: loadingToast,
+      });
     } catch (error: unknown) {
       console.error("Code review failed:", error);
 
       if (error instanceof HTTPError) {
-        const errorData = error.data as {
-          detail?: unknown;
-          message?: string;
-        } | undefined;
+        let detail = `Request failed (${error.response.status})`;
 
-        const detail = errorData?.detail ?? errorData?.message;
+        try {
+          const errorData = await error.response.clone().json() as {
+            detail?: unknown;
+            message?: string;
+          };
 
-        toast.error(
-          typeof detail === "string"
-            ? detail
-            : detail
-              ? JSON.stringify(detail)
-              : `Request failed (${error.response.status})`,
-          { id: loadingToast, duration: 6000 }
-        );
+          const message = errorData.detail ?? errorData.message;
+
+          if (typeof message === "string") {
+            detail = message;
+          } else if (message) {
+            detail = JSON.stringify(message);
+          }
+        } catch {
+          // Retain the HTTP status message when the response isn't JSON.
+        }
+
+        toast.error(detail, {
+          id: loadingToast,
+          duration: 7000,
+        });
       } else {
         toast.error("Failed to connect to backend.", {
           id: loadingToast,
@@ -151,7 +168,7 @@ const WorkspacePage = () => {
     toast.success("Patch dismissed");
   };
 
-  const fileName = selectedFile?.split(/[\\/]/).pop() ?? selectedFile;
+  const fileName = selectedFile?.name ?? null;
 
   const findNodeByPath = (
     node: FileNode,
@@ -271,7 +288,7 @@ const WorkspacePage = () => {
             <div className="mb-2 p-4 md:hidden">
               <button
                 type="button"
-                onClick={() => handleSelectFile("")}
+                onClick={() => handleSelectFile(null)}
                 className="flex items-center gap-2 text-sm font-medium text-app-muted transition-colors hover:text-app-text"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -291,7 +308,7 @@ const WorkspacePage = () => {
                   </h3>
 
                   <p className="mb-6 break-all text-xs text-app-muted">
-                    {selectedFile}
+                    {selectedFile.relative_path}
                   </p>
 
                   <button
