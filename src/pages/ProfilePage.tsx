@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { CheckCircle2, AlertCircle, User, Mail, Loader2, Save, AtSign, Key } from "lucide-react";
+import { CheckCircle2, AlertCircle, User, Mail, Loader2, Save, AtSign, Key, LogOut } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { RequestEmailVerification, VerifyEmailOtp } from "../Api/Auth";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 const ProfilePage = () => {
-  const { user, token, updateUser } = useAuthStore();
+  const { user, token, updateUser, logout } = useAuthStore();
+  const navigate = useNavigate();
   
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -84,11 +86,17 @@ const ProfilePage = () => {
     }
   };
 
+  const handleSignOut = () => {
+    logout();
+    toast.success("Signed out successfully");
+    navigate("/auth");
+  };
+
   const isEmailVerified = (user as any)?.is_email_verified === true;
   const hasChanges = name !== user?.name || username !== user?.username;
 
   return (
-    <div className="w-full max-w-2xl mx-auto flex flex-col items-center pt-[3vh] animate-in fade-in slide-in-from-bottom-2 duration-300 px-6">
+    <div className="w-full max-w-2xl mx-auto flex flex-col items-center pt-[3vh] animate-in fade-in slide-in-from-bottom-2 duration-300 px-6 pb-12">
       
       <div className="flex items-center justify-center w-full px-4">
         <div className="flex-1 h-px bg-app-line max-w-30"></div>
@@ -184,7 +192,6 @@ const ProfilePage = () => {
               </div>
             )}
 
-            {/* OTP Verification Container */}
             {showOtpVerify && (
               <div className="mt-3 p-4 bg-[#141719] border border-app-line rounded-xl animate-in slide-in-from-top-2 fade-in duration-200">
                 <label className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
@@ -243,6 +250,19 @@ const ProfilePage = () => {
           </button>
         </div>
       </form>
+
+      {user && token && (
+        <div className="w-full max-w-md mt-6 pt-6 border-t border-app-line">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="w-full h-8 flex items-center justify-center gap-2 bg-transparent border border-status-red/50 text-status-red hover:bg-status-red/10 rounded-lg text-sm font-semibold transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </button>
+        </div>
+      )}
     </div>
   );
 };

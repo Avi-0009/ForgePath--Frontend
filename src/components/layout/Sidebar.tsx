@@ -149,7 +149,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           <div>
             <div className="text-sm font-bold text-app-text">Private · local-only</div>
             <div className="text-xs text-app-muted mt-0.5 leading-relaxed">
-              Listening on this device. No public workspace.
+              Listening on this device.
             </div>
           </div>
         </div>
