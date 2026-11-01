@@ -74,7 +74,7 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         )}
       </div>
 
-      <nav className="flex-1 px-4 overflow-y-auto pb-6 space-y-6 scrollbar-thumb-app-dim2">
+      <nav className="flex-1 px-4 overflow-y-auto pb-6 space-y-6 scrollbar-thumb-app-btn-hover">
         <div>
           <div className="text-micro tracking-eyebrow uppercase text-app-dim font-bold mb-2 px-2">Workspace</div>
           <div className="space-y-1">
