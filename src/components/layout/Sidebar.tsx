@@ -1,161 +1,283 @@
+
+import type { ComponentType } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { 
-  LayoutDashboard, ListTodo, FolderGit, Activity, Search,
-  ShieldAlert, GitPullRequest, Beaker, CheckSquare,
+import {
+  Activity,
+  Beaker,
+  CheckSquare,
+  FolderGit,
+  GitPullRequest,
+  LayoutDashboard,
+  ListTodo,
+  Search,
   Settings,
-  FolderKanban
+  ShieldAlert,
 } from "lucide-react";
+
 import { useAuthStore } from "../../store/useAuthStore";
-import logo from '../../assets/forgepath.svg';
+import logo from "../../assets/forgepath.svg";
 
 interface SidebarProps {
   isOpen: boolean;
-  setIsOpen: (val: boolean) => void;
+  setIsOpen: (value: boolean) => void;
 }
 
-const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
-  const { user, isAuthenticated } = useAuthStore();
+interface NavigationItem {
+  label: string;
+  path: string;
+  icon: ComponentType<{
+    className?: string;
+    "aria-hidden"?: boolean;
+  }>;
+  count?: number;
+}
+
+const workspaceItems: NavigationItem[] = [
+  {
+    label: "Overview",
+    path: "/",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "Tasks",
+    path: "/tasks",
+    icon: ListTodo,
+    count: 4,
+  },
+  {
+    label: "Repositories",
+    path: "/repositories",
+    icon: FolderGit,
+  },
+  {
+    label: "Agent runs",
+    path: "/runs",
+    icon: Activity,
+  },
+  {
+    label: "Code intelligence",
+    path: "/intel",
+    icon: Search,
+  },
+];
+
+const engineeringItems: NavigationItem[] = [
+  {
+    label: "Investigation",
+    path: "/investigation",
+    icon: ShieldAlert,
+  },
+  {
+    label: "Patch review",
+    path: "/patch-review",
+    icon: GitPullRequest,
+    count: 2,
+  },
+  {
+    label: "Test lab",
+    path: "/test-lab",
+    icon: Beaker,
+  },
+  {
+    label: "Approvals",
+    path: "/approvals",
+    icon: CheckSquare,
+    count: 1,
+  },
+];
+
+const systemItems: NavigationItem[] = [
+  {
+    label: "Settings",
+    path: "/settings",
+    icon: Settings,
+  },
+];
+
+function NavigationGroup({
+  title,
+  items,
+  onNavigate,
+}: {
+  title: string;
+  items: NavigationItem[];
+  onNavigate: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <h2 className="px-3 text-micro font-bold uppercase tracking-eyebrow text-app-dim">
+        {title}
+      </h2>
+
+      <div className="space-y-1">
+        {items.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.path === "/"}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                [
+                  "flex min-h-10 items-center gap-3",
+                  "rounded-lg px-3 py-2 text-xs",
+                  "transition-colors",
+                  isActive
+                    ? "bg-app-panel3 text-app-accent font-semibold"
+                    : "text-app-muted hover:bg-app-btn hover:text-app-text",
+                ].join(" ")
+              }
+            >
+              <Icon
+                className="h-4 w-4 shrink-0"
+                aria-hidden={true}
+              />
+
+              <span className="min-w-0 flex-1 truncate">
+                {item.label}
+              </span>
+
+              {item.count !== undefined && (
+                <span className="shrink-0 rounded-md bg-app-panel3 px-2 py-0.5 text-micro font-semibold text-app-muted">
+                  {item.count}
+                </span>
+              )}
+            </NavLink>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export default function Sidebar({
+  isOpen,
+  setIsOpen,
+}: SidebarProps) {
   const navigate = useNavigate();
-  
 
-  const closeSidebar = () => {
-    setIsOpen(false);
-  }
+  const isAuthenticated = useAuthStore(
+    (state) => state.isAuthenticated
+  );
 
-  const handleLoginRedirect = () => {
-    closeSidebar();
-    navigate('/auth');
-  };
+  const user = useAuthStore((state) => state.user);
+
+  const closeSidebar = () => setIsOpen(false);
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 w-72 md:w-64 h-dvh bg-[#141719] border-r border-app-line flex flex-col shrink-0 transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      }`}
+      id="forgepath-sidebar"
+      aria-label="Main navigation"
+      className={[
+        "fixed inset-y-0 left-0 z-50",
+        "flex h-dvh w-[246px] shrink-0 flex-col",
+        "border-r border-app-line bg-app-panel",
+        "transition-transform duration-200",
+        "md:static md:translate-x-0",
+        isOpen
+          ? "translate-x-0"
+          : "-translate-x-full",
+      ].join(" ")}
     >
-      <div className="pt-6 px-6 pb-4">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-app-accent text-app-accent-ink grid place-items-center shadow-sm">
-            <img src={logo} alt="ForgePath Logo" className="w-10 h-10" />
+      <div className="shrink-0 px-4 pb-4 pt-6">
+        <NavLink
+          to="/"
+          onClick={closeSidebar}
+          className="flex items-center gap-3 px-2"
+        >
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-app-accent">
+            <img
+              src={logo}
+              alt=""
+              className="h-10 w-10"
+            />
           </div>
-          <div>
-            <div className="font-manrope font-extrabold tracking-tight text-app-text text-lg leading-tight">ForgePath</div>
+
+          <div className="min-w-0">
+            <strong className="block truncate font-manrope text-lg font-extrabold tracking-tight text-app-text">
+              ForgePath
+            </strong>
+
+            <span className="block text-micro uppercase tracking-wider text-app-dim">
+              Engineering agent
+            </span>
           </div>
-        </div>
+        </NavLink>
 
         {isAuthenticated ? (
           <NavLink
             to="/profile"
-            onClick={() => setIsOpen(false)}
-            className="w-full flex items-center justify-between gap-3 p-3 rounded-xl border border-app-line bg-[#1c2124] hover:bg-app-btn hover:border-app-line-hover text-left transition-colors"
+            onClick={closeSidebar}
+            className="mt-6 flex min-h-16 items-center gap-3 rounded-xl border border-app-line bg-app-panel2 p-3 transition-colors hover:border-app-line-hover"
           >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 shrink-0 rounded-lg bg-[#2a3036] border border-app-line flex items-center justify-center text-sm font-bold text-app-accent uppercase">
-                {user?.name?.charAt(0) || "F"}
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-bold text-app-text leading-tight truncate">
-                  {user?.name || "Personal workspace"}
-                </div>
-                <div className="text-xs text-app-dim mt-1 truncate">
-                  Local instance
-                </div>
-              </div>
-            </div>
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-app-panel3 text-xs font-bold text-app-text">
+              {user?.name?.charAt(0)?.toUpperCase() || "F"}
+            </span>
+
+            <span className="min-w-0 flex-1">
+              <strong className="block truncate text-xs font-semibold text-app-text">
+                {user?.name || "Personal workspace"}
+              </strong>
+
+              <span className="mt-1 block truncate text-micro text-app-muted">
+                Local instance
+              </span>
+            </span>
           </NavLink>
         ) : (
           <button
             type="button"
-            onClick={handleLoginRedirect}
-            className="w-full btn btn-primary py-3 flex items-center justify-center gap-2"
+            onClick={() => {
+              closeSidebar();
+              navigate("/auth");
+            }}
+            className="btn btn-primary mt-6 w-full"
           >
             Sign in to Workspace
           </button>
         )}
       </div>
 
-      <nav className="flex-1 px-4 overflow-y-auto pb-6 space-y-6 scrollbar-thumb-app-btn-hover">
-        <div>
-          <div className="text-micro tracking-eyebrow uppercase text-app-dim font-bold mb-2 px-2">Workspace</div>
-          <div className="space-y-1">
-            <NavLink to="/" onClick={() => setIsOpen(false)} className={({isActive}) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-app-accent/10 text-app-accent" : "text-app-muted hover:bg-app-btn hover:text-app-text"}`}>
-              <LayoutDashboard className="w-4 h-4" /> Overview
-            </NavLink>
+      <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 pb-5 pt-2">
+        <NavigationGroup
+          title="Workspace"
+          items={workspaceItems}
+          onNavigate={closeSidebar}
+        />
 
-            <NavLink
-              to="/workspace"
-              onClick={() => setIsOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                  isActive
-                    ? "bg-app-accent/10 text-app-accent font-semibold"
-                    : "text-app-dim hover:bg-app-btn hover:text-app-text"
-                }`
-              }
-            >
-              <FolderKanban className="w-5 h-5" />
-              <span>Workspace</span>
-            </NavLink>
-            
-            <NavLink to="/tasks" onClick={() => setIsOpen(false)} className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
-              <div className="flex items-center gap-3"><ListTodo className="w-4 h-4" /> Tasks</div>
-              <span className="bg-app-btn text-app-dim text-xs py-0.5 px-2 rounded-full font-bold">4</span>
-            </NavLink>
-            <NavLink to="/repositories" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
-              <FolderGit className="w-4 h-4" /> Repositories
-            </NavLink>
-            <NavLink to="/runs" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
-              <Activity className="w-4 h-4" /> Agent runs
-            </NavLink>
-            <NavLink to="/intel" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
-              <Search className="w-4 h-4" /> Code intelligence
-            </NavLink>
-          </div>
-        </div>
+        <NavigationGroup
+          title="Engineering"
+          items={engineeringItems}
+          onNavigate={closeSidebar}
+        />
 
-        <div>
-          <div className="text-micro tracking-eyebrow uppercase text-app-dim font-bold mb-2 px-2">Engineering</div>
-          <div className="space-y-1">
-            <NavLink to="/investigation" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
-              <ShieldAlert className="w-4 h-4" /> Investigation
-            </NavLink>
-            <NavLink to="/patch-review" onClick={() => setIsOpen(false)} className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
-              <div className="flex items-center gap-3"><GitPullRequest className="w-4 h-4" /> Patch review</div>
-              <span className="bg-app-btn text-app-dim text-xs py-0.5 px-2 rounded-full font-bold">2</span>
-            </NavLink>
-            <NavLink to="/test-lab" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
-              <Beaker className="w-4 h-4" /> Test lab
-            </NavLink>
-            <NavLink to="/approvals" onClick={() => setIsOpen(false)} className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
-              <div className="flex items-center gap-3"><CheckSquare className="w-4 h-4" /> Approvals</div>
-              <span className="bg-app-btn text-app-dim text-xs py-0.5 px-2 rounded-full font-bold">1</span>
-            </NavLink>
-          </div>
-        </div>
-
-        <div>
-          <div className="text-micro tracking-eyebrow uppercase text-app-dim font-bold mb-2 px-2">System</div>
-          <div className="space-y-1">
-            <NavLink to="/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-app-muted hover:bg-app-btn hover:text-app-text transition-colors">
-              <Settings className="w-4 h-4" /> Settings
-            </NavLink>
-          </div>
-        </div>
+        <NavigationGroup
+          title="System"
+          items={systemItems}
+          onNavigate={closeSidebar}
+        />
       </nav>
 
-      <div className="p-4 mt-auto shrink-0">
-        <div className="p-3 rounded-xl border border-app-accent/20 bg-app-accent/5 flex items-start gap-3">
-          <div className="w-2 h-2 rounded-full bg-app-accent mt-1.5 shrink-0 animate-pulse" />
-          <div>
-            <div className="text-sm font-bold text-app-text">Private · local-only</div>
-            <div className="text-xs text-app-muted mt-0.5 leading-relaxed">
-              Listening on this device.
-            </div>
+      <div className="shrink-0 border-t border-app-line p-4">
+        <div className="flex items-start gap-2 rounded-xl border border-app-accent/20 bg-app-accent/10 p-3">
+          <span
+            aria-hidden="true"
+            className="mt-1 h-2 w-2 shrink-0 rounded-full bg-app-accent"
+          />
+
+          <div className="min-w-0">
+            <strong className="block text-xs font-semibold text-app-text">
+              Private · local-only
+            </strong>
+
+            <p className="mt-1 text-micro leading-relaxed text-app-muted">
+              Listening on this device. No public workspace.
+            </p>
           </div>
         </div>
       </div>
     </aside>
   );
-};
-
-export default Sidebar;
+}

@@ -1,285 +1,323 @@
-import { useState, useEffect } from "react";
-import { Database, FolderGit2, AlertTriangle, ShieldBan, Loader2, X } from "lucide-react";
-import { useAuthStore } from "../store/useAuthStore";
-import { GetRepositories, AddRepository, TriggerIndexing } from "../Api/Repositories";
-import type { Repository } from "../Api/Repositories";
-import toast from "react-hot-toast";
+import { useState } from "react";
+import {
+  AlertTriangle,
+  Database,
+  FileCode2,
+  FolderGit2,
+  Info,
+  LockKeyhole,
+  Plus,
+  Search,
+  ShieldBan,
+} from "lucide-react";
 
-const RepositoriesPage = () => {
-  const { token } = useAuthStore();
-  const [repositories, setRepositories] = useState<Repository[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newRepoPath, setNewRepoPath] = useState("");
-  const [sourceType, setSourceType] = useState<"local" | "git">("local");
-  const [isAdding, setIsAdding] = useState(false);
+const exclusions = [
+  {
+    title: "Secrets and environment files",
+    description: ".env, *.pem, *.key, credentials.*",
+    icon: LockKeyhole,
+  },
+  {
+    title: "Generated artifacts",
+    description: "node_modules, dist, build, vendor, .git",
+    icon: ShieldBan,
+  },
+  {
+    title: "Large and binary files",
+    description:
+      "Large or unsupported binary files are excluded according to backend indexing rules.",
+    icon: AlertTriangle,
+  },
+];
 
-  const fetchRepos = async () => {
-    if (!token) return;
-    try {
-      const data = await GetRepositories(token);
-      setRepositories(data);
-    } catch (error: any) {
-      toast.error("Failed to load repositories. Verify backend connection.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+const summary = [
+  {
+    label: "Connected repositories",
+    value: "—",
+    detail: "Repository connections not enabled",
+    icon: FolderGit2,
+  },
+  {
+    label: "Files indexed",
+    value: "—",
+    detail: "No repository index available",
+    icon: FileCode2,
+  },
+  {
+    label: "Code chunks",
+    value: "—",
+    detail: "No indexed chunks available",
+    icon: Database,
+  },
+  {
+    label: "Index freshness",
+    value: "—",
+    detail: "No index to evaluate",
+    icon: Search,
+  },
+];
 
-  useEffect(() => {
-    fetchRepos();
-  }, [token]);
-
-  const extractErrorMessage = async (error: any, defaultMsg: string) => {
-    if (error.response) {
-      try {
-        const errData = await error.response.json();
-        return errData.detail || defaultMsg;
-      } catch (_) {
-        return defaultMsg;
-      }
-    }
-    return defaultMsg;
-  };
-
-  const handleAddRepository = async () => {
-    if (!newRepoPath.trim() || !token) return;
-    
-    setIsAdding(true);
-    toast.loading("Validating path and permissions...", { id: "add-repo" });
-    
-    try {
-      await AddRepository(token, newRepoPath, sourceType);
-      toast.success("Repository added successfully!", { id: "add-repo" });
-      setIsModalOpen(false);
-      setNewRepoPath("");
-      fetchRepos();
-    } catch (error: any) {
-      const errMsg = await extractErrorMessage(error, "Failed to add repository. Check path validity.");
-      toast.error(errMsg, { id: "add-repo" });
-    } finally {
-      setIsAdding(false);
-    }
-  };
-
-  const handleReindex = async (repoId: string) => {
-    if (!token) return;
-    toast.loading("Queuing index job and applying exclusions...", { id: `index-${repoId}` });
-    
-    try {
-      await TriggerIndexing(token, repoId);
-      toast.success("Indexing started. Files are being processed.", { id: `index-${repoId}` });
-      fetchRepos(); 
-    } catch (error: any) {
-      const errMsg = await extractErrorMessage(error, "Failed to trigger indexing.");
-      toast.error(errMsg, { id: `index-${repoId}` });
-    }
-  };
+export default function RepositoriesPage() {
+  const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-8 animate-in fade-in duration-300">
-      <div className="max-w-app mx-auto space-y-8">
-        
-        <div className="flex flex-col md:flex-row md:items-start gap-4">
-          <div className="flex-1">
-            <div className="text-micro tracking-eyebrow uppercase text-app-dim font-bold mb-1">
+    <div className="min-w-0 p-4 md:p-8">
+      <div className="mx-auto max-w-app space-y-5">
+        {/* Page heading */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="mb-1 text-micro font-bold uppercase tracking-eyebrow text-app-dim">
               WORKSPACE / SOURCE CONTROL
-            </div>
-            <h1 className="font-manrope text-2xl md:text-[28px] tracking-[-0.045em] font-[750] m-0 mb-1.5 text-app-text">
+            </p>
+
+            <h1 className="mb-1.5 font-manrope text-2xl font-extrabold tracking-tight text-app-text md:text-[28px]">
               Repositories
             </h1>
-            <p className="text-[13px] text-app-muted m-0 max-w-170">
-              Connect a local checkout or clone a repository into a controlled workspace. Indexing never grants permission to push changes.
+
+            <p className="max-w-170 text-[13px] leading-relaxed text-app-muted">
+              Manage connected codebases, inspect indexing health,
+              and review source-access safeguards.
             </p>
           </div>
-          <div className="flex items-center justify-start md:justify-end w-full md:w-auto">
-            <button onClick={() => setIsModalOpen(true)} className="btn btn-primary font-semibold">
-              ＋ Add repository
-            </button>
-          </div>
+
+          <button
+            type="button"
+            disabled
+            title="Repository connections will be enabled in a future update"
+            className="btn btn-primary shrink-0 gap-2 self-start disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Add repository
+          </button>
         </div>
 
-        <div className="p-[13px_15px] border border-[#354a60] bg-[#1b242d] text-[#b9cce0] rounded-micro flex gap-2.75 text-2.75">
-          <span className="shrink-0 text-base leading-none">ⓘ</span>
+        {/* Read-only information */}
+        <div className="flex items-start gap-3 rounded-callout border border-status-blue-line bg-status-blue-bg p-3.5 text-xs text-status-blue">
+          <Info
+            className="mt-0.5 h-4 w-4 shrink-0"
+            aria-hidden="true"
+          />
+
           <div>
-            <strong className="text-callout-strong">Read-only until you approve. </strong> 
-            Repository access is used to inspect code. Write access is a separate, explicit step.
+            <strong className="font-semibold">
+              Read-only until you approve.
+            </strong>{" "}
+            Repository access is intended for code inspection.
+            Writing changes requires separate, explicit approval.
           </div>
         </div>
 
-        <article className="bg-app-panel border border-app-line rounded-panel shadow-panel overflow-hidden min-h-75">
-          <div className="flex items-center justify-between p-4 border-b border-app-line">
+        {/* Prototype summary cards — no fabricated metrics */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {summary.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <article
+                key={item.label}
+                className="min-w-0 rounded-panel border border-app-line bg-app-panel p-4 shadow-panel"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-2xs text-app-muted">
+                    {item.label}
+                  </span>
+
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-app-mark-bg text-app-mark-text">
+                    <Icon
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    />
+                  </span>
+                </div>
+
+                <div className="mt-3 font-manrope text-[26px] font-extrabold leading-none text-app-text">
+                  {item.value}
+                </div>
+
+                <p className="mt-2 text-micro leading-relaxed text-app-muted">
+                  {item.detail}
+                </p>
+              </article>
+            );
+          })}
+        </div>
+
+        {/* Repositories table */}
+        <article className="overflow-hidden rounded-panel border border-app-line bg-app-panel shadow-panel">
+          <div className="flex flex-col gap-3 border-b border-app-line p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="text-[13px] font-bold text-app-text">Your codebases</div>
-              <div className="text-2.75 text-app-muted mt-1">Index health and local source configuration</div>
+              <h2 className="text-[13px] font-bold text-app-text">
+                Your codebases
+              </h2>
+
+              <p className="mt-1 text-2xs text-app-muted">
+                Index health and repository source configuration
+              </p>
             </div>
-            <div className="flex items-center gap-2 bg-[#1a1e21] border border-app-line rounded-lg px-3 min-h-9 w-55">
-              <span className="text-app-muted">⌕</span>
-              <input type="text" placeholder="Filter repositories..." className="bg-transparent border-0 outline-none text-app-text w-full text-[12px]" />
-            </div>
+
+            <label className="flex min-h-9 w-full items-center gap-2 rounded-lg border border-app-line bg-app-panel2 px-3 text-app-muted sm:w-60">
+              <Search
+                className="h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) =>
+                  setSearchQuery(event.target.value)
+                }
+                placeholder="Filter repositories..."
+                aria-label="Filter repositories"
+                className="min-w-0 flex-1 border-0 bg-transparent text-xs text-app-text outline-none placeholder:text-app-dim"
+              />
+            </label>
           </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-left whitespace-nowrap border-collapse">
+
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[650px] border-collapse text-left">
               <thead>
-                <tr>
-                  <th className="text-micro uppercase tracking-[0.08em] font-bold text-app-table-head p-[12px_16px] border-b border-app-line">Repository</th>
-                  <th className="text-micro uppercase tracking-[0.08em] font-bold text-app-table-head p-[12px_16px] border-b border-app-line">Source</th>
-                  <th className="text-micro uppercase tracking-[0.08em] font-bold text-app-table-head p-[12px_16px] border-b border-app-line">Files</th>
-                  <th className="text-micro uppercase tracking-[0.08em] font-bold text-app-table-head p-[12px_16px] border-b border-app-line">Index status</th>
-                  <th className="text-micro uppercase tracking-[0.08em] font-bold text-app-table-head p-[12px_16px] border-b border-app-line">Last indexed</th>
-                  <th className="p-[12px_16px] border-b border-app-line"></th>
+                <tr className="border-b border-app-line">
+                  {[
+                    "Repository",
+                    "Source",
+                    "Files",
+                    "Index status",
+                    "Last indexed",
+                  ].map((heading) => (
+                    <th
+                      key={heading}
+                      scope="col"
+                      className="px-4 py-3 text-micro font-bold uppercase tracking-wider text-app-table-head"
+                    >
+                      {heading}
+                    </th>
+                  ))}
                 </tr>
               </thead>
+
               <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={6} className="p-8 text-center">
-                      <Loader2 className="w-5 h-5 animate-spin text-app-dim mx-auto" />
-                    </td>
-                  </tr>
-                ) : repositories.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="p-8 text-center text-app-muted text-sm">
-                      No repositories connected.
-                    </td>
-                  </tr>
-                ) : (
-                  repositories.map(repo => (
-                    <tr key={repo.id} className="hover:bg-app-row-hover transition-colors">
-                      <td className="p-[14px_16px] border-b border-app-line-soft">
-                        <div className="flex items-center gap-3">
-                          <div className="w-[30px] h-[30px] border border-app-line bg-[#252a2e] rounded-lg flex items-center justify-center text-[13px] text-app-muted shrink-0">
-                            {repo.source_type === 'git' ? <FolderGit2 className="w-4 h-4" /> : <Database className="w-4 h-4" />}
-                          </div>
-                          <div>
-                            <strong className="block text-[12px] text-app-text">{repo.name}</strong>
-                            <span className="text-micro text-app-muted">{(repo.tech_stack || []).join(" · ") || "Unscanned"}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-[14px_16px] border-b border-app-line-soft font-mono text-[12px] text-app-text">{repo.path}</td>
-                      <td className="p-[14px_16px] border-b border-app-line-soft text-[12px] text-app-text">{repo.file_count || 0}</td>
-                      <td className="p-[14px_16px] border-b border-app-line-soft">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 border rounded-md text-micro whitespace-nowrap before:content-[''] before:w-[5px] before:h-[5px] before:bg-current before:rounded-full ${
-                          repo.status === 'indexed' ? 'border-[#3c5b46] bg-[#1d2c23] text-status-green' :
-                          repo.status === 'indexing' ? 'border-[#344a63] bg-[#1c2938] text-status-blue' :
-                          'border-[#5a4b32] bg-[#30291d] text-status-amber'
-                        }`}>
-                          {repo.status.charAt(0).toUpperCase() + repo.status.slice(1).replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="p-[14px_16px] border-b border-app-line-soft text-[12px] text-app-text">{repo.last_indexed || "Never"}</td>
-                      <td className="p-[14px_16px] border-b border-app-line-soft text-right">
-                        <button 
-                          onClick={() => handleReindex(repo.id)} 
-                          className="btn btn-ghost px-2 py-1 text-2.75 min-h-[30px]"
-                          disabled={repo.status === 'indexing'}
-                        >
-                          Re-index
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-5 py-12 text-center"
+                  >
+                    <div className="mx-auto flex max-w-sm flex-col items-center">
+                      <span className="grid h-12 w-12 place-items-center rounded-xl border border-app-line bg-app-panel3">
+                        <FolderGit2
+                          className="h-5 w-5 text-app-accent"
+                          aria-hidden="true"
+                        />
+                      </span>
+
+                      <h3 className="mt-4 text-sm font-semibold text-app-text">
+                        {searchQuery.trim()
+                          ? "No repositories to search"
+                          : "No repositories connected"}
+                      </h3>
+
+                      <p className="mt-2 text-xs leading-relaxed text-app-muted">
+                        {searchQuery.trim()
+                          ? "Repository connections are not enabled yet, so there are no records to filter."
+                          : "Repository connections and indexing will be available when the ingestion feature is implemented."}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
         </article>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_0.9fr] gap-4 items-start">
-          <article className="bg-app-panel border border-app-line rounded-panel shadow-panel overflow-hidden">
-            <div className="p-4 border-b border-app-line">
-              <div className="text-[13px] font-bold text-app-text">Index exclusions</div>
+        {/* Index exclusions and health */}
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(270px,0.9fr)]">
+          <article className="overflow-hidden rounded-panel border border-app-line bg-app-panel shadow-panel">
+            <div className="border-b border-app-line px-5 py-4">
+              <h2 className="text-[13px] font-bold text-app-text">
+                Index exclusions
+              </h2>
             </div>
-            <div className="p-5 flex flex-col gap-4">
-              <div className="flex gap-3 pb-3 border-b border-[#2b3034]">
-                <div className="w-[27px] h-[27px] rounded-lg bg-[#2a3034] text-app-muted flex items-center justify-center shrink-0">
-                  <ShieldBan className="w-4 h-4" />
-                </div>
-                <div>
-                  <strong className="text-2.75 font-semibold text-app-text block mb-1">Secrets and environment files</strong>
-                  <p className="text-2.75 text-app-muted m-0 font-mono">.env, *.pem, *.key, credentials.*</p>
-                </div>
+
+            <div className="p-5">
+              {exclusions.map((item, index) => {
+                const Icon = item.icon;
+
+                return (
+                  <div
+                    key={item.title}
+                    className={[
+                      "flex items-start gap-3 py-3",
+                      index !== exclusions.length - 1
+                        ? "border-b border-app-line-faint"
+                        : "",
+                    ].join(" ")}
+                  >
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-app-icon-bg2 text-app-muted">
+                      <Icon
+                        className="h-4 w-4"
+                        aria-hidden="true"
+                      />
+                    </span>
+
+                    <div className="min-w-0">
+                      <h3 className="text-2xs font-semibold text-app-text">
+                        {item.title}
+                      </h3>
+
+                      <p className="mt-1 break-words text-2xs leading-relaxed text-app-muted">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </article>
+
+          <article className="overflow-hidden rounded-panel border border-app-line bg-app-panel shadow-panel">
+            <div className="border-b border-app-line px-5 py-4">
+              <h2 className="text-[13px] font-bold text-app-text">
+                Index health
+              </h2>
+            </div>
+
+            <div className="p-5">
+              <div className="flex items-center justify-between gap-3 text-2xs">
+                <span className="text-app-muted">
+                  Eligible source-file coverage
+                </span>
+
+                <span className="font-semibold text-app-text">
+                  N/A
+                </span>
               </div>
-              <div className="flex gap-3 pb-3 border-b border-[#2b3034]">
-                <div className="w-[27px] h-[27px] rounded-lg bg-[#2a3034] text-app-muted flex items-center justify-center shrink-0">
-                  <ShieldBan className="w-4 h-4" />
-                </div>
-                <div>
-                  <strong className="text-2.75 font-semibold text-app-text block mb-1">Generated artifacts</strong>
-                  <p className="text-2.75 text-app-muted m-0 font-mono">node_modules, dist, build, vendor, .git</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="w-[27px] h-[27px] rounded-lg bg-[#2a3034] text-app-muted flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-4 h-4" />
-                </div>
-                <div>
-                  <strong className="text-2.75 font-semibold text-app-text block mb-1">Large and binary files</strong>
-                  <p className="text-2.75 text-app-muted m-0">Files over 1MB and non-text MIME types are automatically skipped.</p>
-                </div>
+
+              <div
+                role="progressbar"
+                aria-label="Index coverage unavailable"
+                aria-valuetext="Not available"
+                className="mt-3 h-1.5 overflow-hidden rounded-full bg-app-line"
+              />
+
+              <p className="mt-4 text-2xs leading-relaxed text-app-muted">
+                Index coverage will appear here after a
+                repository is connected and indexed.
+              </p>
+
+              <div className="mt-5 rounded-lg border border-app-line bg-app-panel2 p-3">
+                <p className="text-2xs font-semibold text-app-text">
+                  Indexing not configured
+                </p>
+
+                <p className="mt-1 text-micro leading-relaxed text-app-muted">
+                  No repository files have been made available
+                  through this page.
+                </p>
               </div>
             </div>
           </article>
         </div>
       </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-[#070808]/70 backdrop-blur-sm z-50 flex items-center justify-center p-5 animate-in fade-in duration-200">
-          <div className="w-full max-w-[540px] bg-[#1b1f22] border border-[#41494f] rounded-[15px] shadow-[0_30px_90px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-start justify-between p-5 border-b border-app-line">
-              <div>
-                <h2 className="text-[17px] tracking-[-0.03em] font-bold m-0 mb-1 text-app-text">Add repository</h2>
-                <p className="text-2.75 text-app-muted m-0">Choose a local checkout or a Git URL to import into a controlled workspace.</p>
-              </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-app-muted hover:text-app-text text-xl">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-5 space-y-4">
-              <div className="flex flex-col gap-[7px]">
-                <label className="text-2.75 text-[#d5d9dc] font-semibold">Source type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="border border-app-line rounded-[9px] p-3 bg-[#171a1d] cursor-pointer transition-colors has-[:checked]:border-[#829f57] has-[:checked]:bg-[#20291b]">
-                    <input type="radio" name="source" value="local" checked={sourceType === 'local'} onChange={() => setSourceType('local')} className="accent-app-accent" />
-                    <strong className="text-2.75 block mt-1.5 text-app-text">Local directory</strong>
-                    <span className="text-micro text-app-muted block mt-0.5">Path on this machine</span>
-                  </label>
-                  <label className="border border-app-line rounded-[9px] p-3 bg-[#171a1d] cursor-pointer transition-colors has-[:checked]:border-[#829f57] has-[:checked]:bg-[#20291b]">
-                    <input type="radio" name="source" value="git" checked={sourceType === 'git'} onChange={() => setSourceType('git')} className="accent-app-accent" />
-                    <strong className="text-2.75 block mt-1.5 text-app-text">Git repository</strong>
-                    <span className="text-micro text-app-muted block mt-0.5">Clone from a URL</span>
-                  </label>
-                </div>
-              </div>
-              
-              <div className="flex flex-col gap-[7px]">
-                <label className="text-2.75 text-[#d5d9dc] font-semibold">Local path or Git URL</label>
-                <input 
-                  type="text" 
-                  value={newRepoPath}
-                  onChange={(e) => setNewRepoPath(e.target.value)}
-                  placeholder={sourceType === 'local' ? "C:\\Users\\you\\projects\\my-repo" : "https://github.com/owner/repo"}
-                  className="w-full border border-[#3a4248] bg-[#141719] text-app-text rounded-lg px-3 py-2.5 text-[12px] focus:outline-none focus:border-app-accent" 
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 p-4 border-t border-app-line bg-[#171a1c]">
-              <button onClick={() => setIsModalOpen(false)} className="btn btn-ghost px-4 h-9 text-xs" disabled={isAdding}>Cancel</button>
-              <button onClick={handleAddRepository} className="btn btn-primary px-4 h-9 text-xs" disabled={isAdding || !newRepoPath.trim()}>
-                {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {isAdding ? "Validating & Adding..." : "Continue"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
-};
-
-export default RepositoriesPage;
+}
