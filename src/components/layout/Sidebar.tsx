@@ -172,7 +172,7 @@ export default function Sidebar({
       aria-label="Main navigation"
       className={[
         "fixed inset-y-0 left-0 z-50",
-        "flex h-dvh w-[246px] shrink-0 flex-col",
+        "flex h-dvh w-61.5 shrink-0 flex-col",
         "border-r border-app-line bg-app-panel",
         "transition-transform duration-200",
         "md:static md:translate-x-0",

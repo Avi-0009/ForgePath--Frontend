@@ -17,6 +17,7 @@ import RepositoriesPage from "./pages/RepositoriesPage";
 import { useAuthStore } from "./store/useAuthStore";
 import AppLayout from "./layouts/AppLayout";
 import TasksPage from "./pages/TasksPage";
+import AgentRunsPage from "./pages/AgentRunsPage";
 
 function PublicOnlyRoute() {
   const isAuthenticated = useAuthStore(
@@ -42,14 +43,19 @@ function App() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
 
+        <Route 
+          path="/tasks"
+          element={<TasksPage />}
+        />
+
         <Route
           path="/repositories"
           element={<RepositoriesPage />}
         />
 
         <Route 
-          path="/tasks"
-          element={<TasksPage />}
+          path="/runs"
+          element={<AgentRunsPage />}
         />
 
         <Route

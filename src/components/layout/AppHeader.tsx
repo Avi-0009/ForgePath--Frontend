@@ -119,10 +119,9 @@ export default function AppHeader({
         onClick={onOpenMenu}
         className={`${controlClass} md:hidden`}
       >
-        <Menu className="h-[18px] w-[18px]" />
+        <Menu className="h-4.5 w-4.5" />
       </button>
 
-      {/* Desktop breadcrumb */}
       <nav
         aria-label="Breadcrumb"
         className="hidden min-w-0 items-center gap-1.5 text-xs sm:flex"
@@ -147,7 +146,7 @@ export default function AppHeader({
         ref={controlsRef}
         className="relative flex shrink-0 items-center gap-2.5"
       >
-        <div className="flex h-8 shrink-0 items-center gap-2 rounded-lg border border-app-line px-2.5 text-[11px] text-app-muted sm:px-3">
+        <div className="flex h-8 shrink-0 items-center gap-2 rounded-lg border border-app-line px-2.5 text-2xs text-app-muted sm:px-3">
           <span
             aria-hidden="true"
             className="h-1.5 w-1.5 rounded-full bg-app-accent"

@@ -175,7 +175,7 @@ export default function RepositoriesPage() {
           </div>
 
           <div className="w-full overflow-x-auto">
-            <table className="w-full min-w-[650px] border-collapse text-left">
+            <table className="w-full min-w-162.5 border-collapse text-left">
               <thead>
                 <tr className="border-b border-app-line">
                   {[
@@ -229,8 +229,7 @@ export default function RepositoriesPage() {
           </div>
         </article>
 
-        {/* Index exclusions and health */}
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(270px,0.9fr)]">
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-home">
           <article className="overflow-hidden rounded-panel border border-app-line bg-app-panel shadow-panel">
             <div className="border-b border-app-line px-5 py-4">
               <h2 className="text-[13px] font-bold text-app-text">
@@ -264,7 +263,7 @@ export default function RepositoriesPage() {
                         {item.title}
                       </h3>
 
-                      <p className="mt-1 break-words text-2xs leading-relaxed text-app-muted">
+                      <p className="mt-1 wrap-break-words text-2xs leading-relaxed text-app-muted">
                         {item.description}
                       </p>
                     </div>
