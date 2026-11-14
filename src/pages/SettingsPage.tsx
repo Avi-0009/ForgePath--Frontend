@@ -1,287 +1,518 @@
 import { useState } from "react";
-import toast from "react-hot-toast";
+import {
+  Activity,
+  AlertTriangle,
+  ChevronRight,
+  Database,
+  HardDrive,
+  Info,
+  KeyRound,
+  LockKeyhole,
+  Server,
+  Settings2,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
 
 type Tab = "general" | "model" | "security" | "limits" | "storage";
+type CredentialMode = "platform" | "byok";
+
+const tabs = [
+  { id: "general", label: "General", icon: Settings2 },
+  { id: "model", label: "Model provider", icon: Sparkles },
+  { id: "security", label: "Security & privacy", icon: ShieldCheck },
+  { id: "limits", label: "Run limits", icon: SlidersHorizontal },
+  { id: "storage", label: "Storage", icon: Database },
+] as const;
+
+const providers = [
+  { value: "openai", label: "OpenAI" },
+  { value: "anthropic", label: "Anthropic" },
+  { value: "google", label: "Google Gemini" },
+  { value: "openrouter", label: "OpenRouter" },
+  { value: "groq", label: "Groq" },
+  { value: "custom", label: "OpenAI-compatible API" },
+] as const;
+
+const panel =
+  "min-w-0 overflow-hidden rounded-panel border " +
+  "border-app-line bg-app-panel shadow-panel";
+
+const Field = ({
+  label,
+  description,
+  value,
+}: {
+  label: string;
+  description: string;
+  value: string;
+}) => (
+  <div className="flex flex-col gap-1 border-b border-app-line-faint py-4 last:border-b-0 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+    <div className="min-w-0 flex-1">
+      <p className="text-xs font-semibold text-app-text">
+        {label}
+      </p>
+      <p className="mt-1 text-2xs leading-relaxed text-app-muted">
+        {description}
+      </p>
+    </div>
+    <span className="shrink-0 text-xs text-app-muted sm:text-right">
+      {value}
+    </span>
+  </div>
+);
+
+const SectionTitle = ({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) => (
+  <div className="border-b border-app-line px-4 py-4 sm:px-5">
+    <h2 className="text-[13px] font-bold text-app-text">
+      {title}
+    </h2>
+    <p className="mt-1 text-2xs leading-relaxed text-app-muted">
+      {description}
+    </p>
+  </div>
+);
 
 const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>("general");
-
-  const handleSave = () => {
-    toast.success("Settings saved for this preview session only.");
-  };
+  const [mode, setMode] = useState<CredentialMode>("platform");
+  const [provider, setProvider] = useState("openai");
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-8 animate-in fade-in duration-300">
-      <div className="max-w-app mx-auto">
-        
-        <div className="flex flex-col md:flex-row md:items-start gap-4 mb-6">
-          <div className="flex-1">
-            <div className="text-micro tracking-eyebrow uppercase text-app-dim font-bold mb-1">
-              SYSTEM / CONFIGURATION
-            </div>
-            <h1 className="font-manrope text-2xl md:text-[28px] tracking-[-0.045em] font-[750] m-0 mb-1.5 text-app-text">
-              Settings
-            </h1>
-            <p className="text-3.25 text-app-muted m-0 max-w-170">
-              Manage model provider, local security boundaries, run budgets, and storage. Secrets never belong in the frontend.
-            </p>
-          </div>
-          <div className="flex items-center justify-start md:justify-end w-full md:w-auto">
-            <button onClick={handleSave} className="btn btn-primary">
-              Save settings
-            </button>
+    <div className="min-w-0 bg-app-bg px-3 py-5 text-app-text sm:px-6 sm:py-7 lg:px-9">
+      <div className="mx-auto max-w-app space-y-5">
+        <header>
+          <p className="mb-1.5 text-micro font-bold uppercase tracking-eyebrow text-app-dim">
+            SYSTEM / CONFIGURATION
+          </p>
+
+          <h1 className="font-manrope text-[28px] font-extrabold tracking-tight">
+            Settings
+          </h1>
+
+          <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-app-muted">
+            Manage your workspace, AI provider, execution boundaries,
+            and system configuration.
+          </p>
+        </header>
+
+        <div className="flex items-start gap-3 rounded-callout border border-status-blue-line bg-status-blue-bg p-4">
+          <Info
+            size={17}
+            className="mt-0.5 shrink-0 text-status-blue"
+            aria-hidden="true"
+          />
+          <div className="text-xs leading-relaxed text-status-blue">
+            <strong>Backend-controlled settings.</strong>{" "}
+            Provider credentials, security boundaries, and run
+            limits must be enforced by the server. This page
+            does not claim to save settings for which a backend
+            API has not yet been connected.
           </div>
         </div>
 
-        <div className="p-[13px_15px] border border-[#354a60] bg-[#1b242d] text-[#b9cce0] rounded-micro flex gap-2.75 text-2.75 mb-4">
-          <span className="shrink-0 text-base leading-none">ⓘ</span>
-          <div>
-            <strong className="text-callout-strong">Local-only assumption. </strong> 
-            Prototype values are illustrative. Store API keys in a backend environment variable or OS secret store, never localStorage or frontend source.
-          </div>
-        </div>
+        <div className="grid min-w-0 grid-cols-1 items-start gap-4 md:grid-cols-[210px_minmax(0,1fr)]">
+          <aside
+            aria-label="Settings sections"
+            className={`${panel} flex gap-1 overflow-x-auto p-2 md:flex-col`}
+          >
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const selected = activeTab === tab.id;
 
-        <div className="grid grid-cols-1 md:grid-cols-[210px_minmax(0,1fr)] items-start gap-4 mt-6">
-          
-          <aside className="bg-app-panel border border-app-line rounded-panel p-2 flex md:flex-col overflow-x-auto shadow-panel gap-1">
-            {[
-              { id: "general", label: "General" },
-              { id: "model", label: "Model provider" },
-              { id: "security", label: "Security & privacy" },
-              { id: "limits", label: "Run limits" },
-              { id: "storage", label: "Storage" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as Tab)}
-                className={`w-auto md:w-full px-3 py-2.5 border-0 text-left rounded-1.75 text-2.75 whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
-                    ? "bg-[#2b302a] text-app-accent font-semibold"
-                    : "bg-transparent text-app-muted hover:bg-app-row-hover"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  aria-current={selected ? "page" : undefined}
+                  className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs transition-colors md:w-full ${
+                    selected
+                      ? "bg-app-panel3 font-semibold text-app-accent"
+                      : "text-app-muted hover:bg-app-row-hover hover:text-app-text"
+                  }`}
+                >
+                  <Icon size={15} aria-hidden="true" />
+                  <span className="flex-1 whitespace-nowrap">
+                    {tab.label}
+                  </span>
+                  {selected && (
+                    <ChevronRight
+                      size={13}
+                      className="hidden md:block"
+                      aria-hidden="true"
+                    />
+                  )}
+                </button>
+              );
+            })}
           </aside>
 
-          <article className="bg-app-panel border border-app-line rounded-panel shadow-panel overflow-hidden">
-            
+          <main className={panel}>
             {activeTab === "general" && (
-              <div className="animate-in fade-in duration-200">
-                <div className="p-5.5">
-                  <h3 className="text-3.25 font-bold m-0 mb-1">Workspace preferences</h3>
-                  <p className="text-2.75 text-app-muted m-0 mb-5">How the local DevPilot instance behaves.</p>
-                  
-                  <div className="flex flex-col gap-1.75 mb-3.75">
-                    <label className="text-2.75 text-[#d5d9dc] font-semibold">Workspace label</label>
-                    <input type="text" defaultValue="Personal workspace" className="w-full border border-[#3a4248] bg-[#141719] text-app-text rounded-lg px-3 py-2.5 text-[12px] focus:outline-none focus:border-app-accent" />
-                  </div>
-                  
-                  <div className="flex flex-col gap-1.75 mb-3.75">
-                    <label className="text-2.75 text-[#d5d9dc] font-semibold">Default repository</label>
-                    <select className="w-full border border-[#3a4248] bg-[#141719] text-app-text rounded-lg px-3 py-2.5 text-[12px] focus:outline-none focus:border-app-accent appearance-none">
-                      <option>InstantWicket-backend</option>
-                      <option>InstantWicket-frontend</option>
-                      <option>langGraph</option>
-                    </select>
-                  </div>
+              <>
+                <SectionTitle
+                  title="Workspace preferences"
+                  description="Your current ForgePath workspace configuration."
+                />
 
-                  <div className="flex items-center gap-4.5 py-3.25 border-t border-[#2c3135]">
-                    <div className="flex-1">
-                      <strong className="text-2.75 block font-bold text-app-text">Confirm before destructive actions</strong>
-                      <span className="text-micro text-app-muted block mt-0.75">Always require explicit confirmation.</span>
-                    </div>
-                    <ToggleSwitch defaultChecked />
-                  </div>
-
-                  <div className="flex items-center gap-4.5 py-3.25 border-t border-[#2c3135]">
-                    <div className="flex-1">
-                      <strong className="text-2.75 block font-bold text-app-text">Reduced motion</strong>
-                      <span className="text-micro text-app-muted block mt-0.75">Respect system accessibility preferences.</span>
-                    </div>
-                    <ToggleSwitch />
-                  </div>
+                <div className="px-4 sm:px-5">
+                  <Field
+                    label="Workspace"
+                    description="Current local-development workspace."
+                    value="Personal workspace"
+                  />
+                  <Field
+                    label="Default repository"
+                    description="Repository defaults will be available after project-source integration."
+                    value="Not configured"
+                  />
+                  <Field
+                    label="Task creation"
+                    description="New task creation requires an authorized project source."
+                    value="Not yet enabled"
+                  />
+                  <Field
+                    label="Confirmation before actions"
+                    description="Execution and workflow decisions require explicit confirmation in their respective screens."
+                    value="Required by UI"
+                  />
                 </div>
-              </div>
+              </>
             )}
 
             {activeTab === "model" && (
-              <div className="animate-in fade-in duration-200">
-                <div className="p-5.5">
-                  <h3 className="text-3.25 font-bold m-0 mb-1">Language model provider</h3>
-                  <p className="text-2.75 text-app-muted m-0 mb-5">LLM calls are made by the backend. Submitted source context may be transmitted to the selected hosted provider.</p>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <label className="border border-app-line rounded-[9px] p-3 bg-app-auth-panel cursor-pointer transition-colors has-checked:border-[#829f57] has-checked:bg-[#20291b]">
-                      <input type="radio" name="provider" value="openai" defaultChecked className="accent-app-accent" />
-                      <strong className="text-2.75 block mt-1.5 text-app-text">OpenAI API</strong>
-                      <span className="text-micro text-app-muted block mt-0.5">Hosted inference · API key required</span>
-                    </label>
-                    <label className="border border-app-line rounded-[9px] p-3 bg-app-auth-panel cursor-pointer transition-colors has-checked:border-[#829f57] has-checked:bg-[#20291b]">
-                      <input type="radio" name="provider" value="local" className="accent-app-accent" />
-                      <strong className="text-2.75 block mt-1.5 text-app-text">Local model</strong>
-                      <span className="text-micro text-app-muted block mt-0.5">Local inference · hardware dependent</span>
-                    </label>
+              <>
+                <SectionTitle
+                  title="Language model provider"
+                  description="Choose between ForgePath-managed AI and your own provider credentials."
+                />
+
+                <div className="space-y-5 p-4 sm:p-5">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setMode("platform")}
+                      aria-pressed={mode === "platform"}
+                      className={`rounded-xl border p-4 text-left transition-colors ${
+                        mode === "platform"
+                          ? "border-app-accent bg-app-panel3"
+                          : "border-app-line bg-app-bg hover:bg-app-row-hover"
+                      }`}
+                    >
+                      <Server
+                        size={20}
+                        className="text-app-accent"
+                        aria-hidden="true"
+                      />
+                      <strong className="mt-3 block text-xs">
+                        ForgePath AI
+                      </strong>
+                      <p className="mt-1 text-2xs leading-relaxed text-app-muted">
+                        Use the model and API key configured
+                        securely on the ForgePath backend.
+                      </p>
+                      <span className="mt-3 block text-micro text-app-accent">
+                        {mode === "platform"
+                          ? "Selected for preview"
+                          : "Select mode"}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setMode("byok")}
+                      aria-pressed={mode === "byok"}
+                      className={`rounded-xl border p-4 text-left transition-colors ${
+                        mode === "byok"
+                          ? "border-app-accent bg-app-panel3"
+                          : "border-app-line bg-app-bg hover:bg-app-row-hover"
+                      }`}
+                    >
+                      <KeyRound
+                        size={20}
+                        className="text-app-accent"
+                        aria-hidden="true"
+                      />
+                      <strong className="mt-3 block text-xs">
+                        Bring your own API key
+                      </strong>
+                      <p className="mt-1 text-2xs leading-relaxed text-app-muted">
+                        Connect a supported provider using your
+                        own account and billing.
+                      </p>
+                      <span className="mt-3 block text-micro text-app-accent">
+                        {mode === "byok"
+                          ? "Selected for preview"
+                          : "Select mode"}
+                      </span>
+                    </button>
                   </div>
 
-                  <div className="flex flex-col gap-1.75 mt-3.75 mb-3.75">
-                    <label className="text-2.75 text-[#d5d9dc] font-semibold">Model identifier</label>
-                    <input type="text" defaultValue="gpt-4o-mini" className="w-full border border-[#3a4248] bg-[#141719] text-app-text rounded-lg px-3 py-2.5 text-[12px] focus:outline-none focus:border-app-accent" />
-                    <div className="text-micro text-[#869098]">Use a currently supported model identifier; this value is not verified by this static demo.</div>
-                  </div>
+                  {mode === "platform" ? (
+                    <div className="rounded-lg border border-app-line bg-app-panel2 p-4">
+                      <div className="flex items-start gap-3">
+                        <Server
+                          size={18}
+                          className="shrink-0 text-app-accent"
+                          aria-hidden="true"
+                        />
 
-                  <div className="flex flex-col gap-1.75">
-                    <label className="text-2.75 text-[#d5d9dc] font-semibold">API key status</label>
-                    <div className="p-[13px_15px] border border-callout-line bg-callout-bg text-callout-text rounded-micro flex gap-2.75 text-2.75">
-                      <span className="shrink-0 text-base leading-none text-status-green">✓</span>
+                        <div className="min-w-0">
+                          <h3 className="text-xs font-semibold">
+                            Server-managed provider
+                          </h3>
+                          <p className="mt-2 text-2xs leading-relaxed text-app-muted">
+                            ForgePath will use the backend's
+                            configured credentials. The browser
+                            never receives the provider API key.
+                          </p>
+                          <p className="mt-3 text-2xs text-status-amber">
+                            Provider availability and model name
+                            have not been verified by a settings API.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
                       <div>
-                        <strong className="text-callout-strong block mb-1">Loaded by backend environment</strong>
-                        Key value intentionally hidden from this UI.
+                        <label
+                          htmlFor="model-provider"
+                          className="mb-2 block text-xs font-semibold"
+                        >
+                          Provider
+                        </label>
+                        <select
+                          id="model-provider"
+                          value={provider}
+                          onChange={(event) =>
+                            setProvider(event.target.value)
+                          }
+                          className="w-full rounded-lg border border-app-line bg-app-bg px-3 py-2.5 text-xs text-app-text"
+                        >
+                          {providers.map((option) => (
+                            <option
+                              key={option.value}
+                              value={option.value}
+                            >
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="model-name"
+                          className="mb-2 block text-xs font-semibold"
+                        >
+                          Model identifier
+                        </label>
+                        <input
+                          id="model-name"
+                          type="text"
+                          placeholder="Available after backend integration"
+                          disabled
+                          className="w-full rounded-lg border border-app-line bg-app-bg px-3 py-2.5 text-xs text-app-muted disabled:opacity-60"
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="provider-key"
+                          className="mb-2 block text-xs font-semibold"
+                        >
+                          Provider API key
+                        </label>
+                        <input
+                          id="provider-key"
+                          type="password"
+                          placeholder="Secure credential storage not connected"
+                          disabled
+                          autoComplete="off"
+                          className="w-full rounded-lg border border-app-line bg-app-bg px-3 py-2.5 text-xs text-app-muted disabled:opacity-60"
+                        />
+                      </div>
+
+                      <div className="flex items-start gap-2 rounded-lg border border-status-amber-line bg-status-amber-bg p-3">
+                        <AlertTriangle
+                          size={16}
+                          className="shrink-0 text-status-amber"
+                          aria-hidden="true"
+                        />
+                        <p className="text-2xs leading-relaxed text-status-amber">
+                          BYOK needs authenticated, per-user
+                          encrypted credential storage and a
+                          model-routing service. Credentials
+                          will not be collected until those
+                          backend protections exist.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border-t border-app-line pt-4">
+                    <div className="flex items-start gap-3">
+                      <LockKeyhole
+                        size={17}
+                        className="shrink-0 text-status-green"
+                        aria-hidden="true"
+                      />
+                      <div>
+                        <h3 className="text-xs font-semibold">
+                          Secrets stay server-side
+                        </h3>
+                        <p className="mt-1 text-2xs leading-relaxed text-app-muted">
+                          Provider keys must never be saved to
+                          localStorage, embedded in frontend
+                          environment variables, or returned
+                          in settings responses.
+                        </p>
                       </div>
                     </div>
                   </div>
+
+                  <p className="text-micro text-app-dim">
+                    These mode selections are not persisted
+                    or applied to AI requests yet.
+                  </p>
                 </div>
-              </div>
+              </>
             )}
 
             {activeTab === "security" && (
-              <div className="animate-in fade-in duration-200">
-                <div className="p-5.5">
-                  <h3 className="text-3.25 font-bold m-0 mb-1">Privacy & execution boundaries</h3>
-                  <p className="text-2.75 text-app-muted m-0 mb-5">These settings are intended to map to backend enforcement—not just visual preferences.</p>
-                  
-                  <div className="flex items-center gap-4.5 py-3.25 border-t border-[#2c3135]">
-                    <div className="flex-1">
-                      <strong className="text-2.75 block font-bold text-app-text">Bind API to loopback only</strong>
-                      <span className="text-micro text-app-muted block mt-0.75">Listen on 127.0.0.1; do not use 0.0.0.0.</span>
-                    </div>
-                    <ToggleSwitch defaultChecked disabled />
-                  </div>
+              <>
+                <SectionTitle
+                  title="Security & privacy"
+                  description="Execution safeguards and configuration boundaries."
+                />
 
-                  <div className="flex items-center gap-4.5 py-3.25 border-t border-[#2c3135]">
-                    <div className="flex-1">
-                      <strong className="text-2.75 block font-bold text-app-text">Sandbox networking disabled</strong>
-                      <span className="text-micro text-app-muted block mt-0.75">Default-deny network egress for repository code.</span>
-                    </div>
-                    <ToggleSwitch defaultChecked />
-                  </div>
-
-                  <div className="flex items-center gap-4.5 py-3.25 border-t border-[#2c3135]">
-                    <div className="flex-1">
-                      <strong className="text-2.75 block font-bold text-app-text">Human approval for repository writes</strong>
-                      <span className="text-micro text-app-muted block mt-0.75">Patch review, sandbox approval, and write approval are separate.</span>
-                    </div>
-                    <ToggleSwitch defaultChecked disabled />
-                  </div>
-
-                  <div className="flex items-center gap-4.5 py-3.25 border-t border-[#2c3135]">
-                    <div className="flex-1">
-                      <strong className="text-2.75 block font-bold text-app-text">Redact secrets from logs</strong>
-                      <span className="text-micro text-app-muted block mt-0.75">Never record API tokens or refresh-token values.</span>
-                    </div>
-                    <ToggleSwitch defaultChecked disabled />
-                  </div>
-
-                  <div className="flex items-center gap-4.5 py-3.25 border-t border-[#2c3135]">
-                    <div className="flex-1">
-                      <strong className="text-2.75 block font-bold text-app-text">First-user bootstrap mode</strong>
-                      <span className="text-micro text-app-muted block mt-0.75">Disable open public registration for this single-user installation.</span>
-                    </div>
-                    <ToggleSwitch defaultChecked />
-                  </div>
+                <div className="px-4 sm:px-5">
+                  <Field
+                    label="Human approval"
+                    description="Workflow patch and test checkpoints require explicit decisions."
+                    value="Workflow-controlled"
+                  />
+                  <Field
+                    label="Sandbox execution"
+                    description="Runtime isolation and network restrictions are controlled by the backend."
+                    value="Backend-controlled"
+                  />
+                  <Field
+                    label="Secret redaction"
+                    description="Credentials must not appear in logs, API responses, or workflow output."
+                    value="Required"
+                  />
+                  <Field
+                    label="API access"
+                    description="Host binding and CORS settings are defined by the backend deployment."
+                    value="Deployment setting"
+                  />
+                  <Field
+                    label="Registration policy"
+                    description="Public signup restrictions require backend enforcement."
+                    value="Not managed here"
+                  />
                 </div>
-              </div>
+              </>
             )}
 
-            {/* Run Limits Tab */}
             {activeTab === "limits" && (
-              <div className="animate-in fade-in duration-200">
-                <div className="p-5.5">
-                  <h3 className="text-3.25 font-bold m-0 mb-1">Per-run budgets</h3>
-                  <p className="text-2.75 text-app-muted m-0 mb-5">Bound token spend and prevent runaway agent loops.</p>
-                  
-                  <div className="flex flex-col gap-1.75 mb-3.75">
-                    <label className="text-2.75 text-[#d5d9dc] font-semibold">Maximum model calls per run</label>
-                    <input type="number" defaultValue="12" min="1" max="100" className="w-full border border-[#3a4248] bg-[#141719] text-app-text rounded-lg px-3 py-2.5 text-[12px] focus:outline-none focus:border-app-accent" />
-                  </div>
+              <>
+                <SectionTitle
+                  title="Run limits"
+                  description="Limits need to be enforced at the execution layer."
+                />
 
-                  <div className="flex flex-col gap-1.75 mb-3.75">
-                    <label className="text-2.75 text-[#d5d9dc] font-semibold">Maximum repair attempts</label>
-                    <input type="number" defaultValue="2" min="0" max="5" className="w-full border border-[#3a4248] bg-[#141719] text-app-text rounded-lg px-3 py-2.5 text-[12px] focus:outline-none focus:border-app-accent" />
-                  </div>
-
-                  <div className="flex flex-col gap-1.75 mb-3.75">
-                    <label className="text-2.75 text-[#d5d9dc] font-semibold">Sandbox timeout (seconds)</label>
-                    <input type="number" defaultValue="120" min="10" max="900" className="w-full border border-[#3a4248] bg-[#141719] text-app-text rounded-lg px-3 py-2.5 text-[12px] focus:outline-none focus:border-app-accent" />
-                  </div>
-
-                  <div className="flex items-center gap-4.5 py-3.25 border-t border-[#2c3135]">
-                    <div className="flex-1">
-                      <strong className="text-2.75 block font-bold text-app-text">Stop at budget limit</strong>
-                      <span className="text-micro text-app-muted block mt-0.75">Pause and explain when a cap is reached.</span>
-                    </div>
-                    <ToggleSwitch defaultChecked />
-                  </div>
+                <div className="px-4 sm:px-5">
+                  <Field
+                    label="Model call budget"
+                    description="Maximum AI requests allowed within a run."
+                    value="Backend-configured"
+                  />
+                  <Field
+                    label="Repair attempts"
+                    description="Maximum automatic repair cycles."
+                    value="Backend-configured"
+                  />
+                  <Field
+                    label="Sandbox timeout"
+                    description="Maximum permitted test execution duration."
+                    value="Backend-enforced"
+                  />
+                  <Field
+                    label="ForgePath AI allowance"
+                    description="Per-user sponsored API usage requires quota and billing enforcement."
+                    value="Not configured"
+                  />
                 </div>
-              </div>
+
+                <div className="flex gap-2 border-t border-app-line bg-app-panel2 p-4 text-2xs text-app-muted">
+                  <Activity
+                    size={15}
+                    className="shrink-0"
+                    aria-hidden="true"
+                  />
+                  Limits shown here are informational,
+                  not editable settings.
+                </div>
+              </>
             )}
 
-            {/* Storage Tab */}
             {activeTab === "storage" && (
-              <div className="animate-in fade-in duration-200">
-                <div className="p-5.5">
-                  <h3 className="text-3.25 font-bold m-0 mb-1">Persistence</h3>
-                  <p className="text-2.75 text-app-muted m-0 mb-5">Keep app state, code index, LangGraph checkpoints, and repository files conceptually separate.</p>
-                  
-                  <div className="flex items-center gap-4.5 py-3.25 border-t border-[#2c3135]">
-                    <div className="flex-1">
-                      <strong className="text-2.75 block font-bold text-app-text">Application database</strong>
-                      <span className="text-micro text-app-muted block mt-0.75">SQLite · ./data/forgepath.db</span>
-                    </div>
-                    <span className="inline-flex items-center gap-1.5 px-2 py-1 border border-status-green-line bg-status-green-bg rounded-md text-micro text-status-green whitespace-nowrap before:content-[''] before:w-1.25 before:h-1.25 before:bg-current before:rounded-full">Connected</span>
-                  </div>
+              <>
+                <SectionTitle
+                  title="Storage"
+                  description="Application data, indexes, and workflow checkpoints."
+                />
 
-                  <div className="flex items-center gap-4.5 py-3.25 border-t border-[#2c3135]">
-                    <div className="flex-1">
-                      <strong className="text-2.75 block font-bold text-app-text">Vector index</strong>
-                      <span className="text-micro text-app-muted block mt-0.75">Local persistent vector store · ./data/index</span>
-                    </div>
-                    <span className="inline-flex items-center gap-1.5 px-2 py-1 border border-status-green-line bg-status-green-bg rounded-md text-micro text-status-green whitespace-nowrap before:content-[''] before:w-1.25 before:h-1.25 before:bg-current before:rounded-full">Indexed</span>
-                  </div>
-
-                  <div className="flex items-center gap-4.5 py-3.25 border-t border-[#2c3135]">
-                    <div className="flex-1">
-                      <strong className="text-2.75 block font-bold text-app-text">Workflow checkpoints</strong>
-                      <span className="text-micro text-app-muted block mt-0.75">Persisted run state and approval resume tokens.</span>
-                    </div>
-                    <span className="inline-flex items-center gap-1.5 px-2 py-1 border border-status-green-line bg-status-green-bg rounded-md text-micro text-status-green whitespace-nowrap before:content-[''] before:w-1.25 before:h-1.25 before:bg-current before:rounded-full">Enabled</span>
-                  </div>
-
-                  <div className="mt-4 p-[13px_15px] border border-[#354a60] bg-[#1b242d] text-[#b9cce0] rounded-micro flex gap-2.75 text-2.75">
-                    <span className="shrink-0 text-base leading-none">ⓘ</span>
-                    <div>
-                      <strong className="text-callout-strong">PostgreSQL is not mandatory just because of deployment. </strong>
-                      SQLite is reasonable for a private, single-user desktop app. Consider PostgreSQL for shared multi-user hosting or higher write concurrency; use migrations and portable schema from day one.
-                    </div>
-                  </div>
+                <div className="px-4 sm:px-5">
+                  <Field
+                    label="Application database"
+                    description="Stores application records and user accounts."
+                    value="PostgreSQL"
+                  />
+                  <Field
+                    label="Code index"
+                    description="Semantic search data is managed by the backend."
+                    value="Backend-managed"
+                  />
+                  <Field
+                    label="Workflow checkpoints"
+                    description="Durable agent state and pending decisions."
+                    value="Backend-managed"
+                  />
+                  <Field
+                    label="Repository files"
+                    description="Source code storage and ingestion remain separate from app data."
+                    value="Ingestion deferred"
+                  />
                 </div>
-              </div>
+
+                <div className="flex items-start gap-2 border-t border-app-line bg-app-panel2 p-4 text-2xs text-app-muted">
+                  <HardDrive
+                    size={15}
+                    className="shrink-0"
+                    aria-hidden="true"
+                  />
+                  Storage health and capacities require
+                  authenticated monitoring endpoints.
+                </div>
+              </>
             )}
-          </article>
+          </main>
         </div>
       </div>
     </div>
   );
 };
-
-const ToggleSwitch = ({ defaultChecked = false, disabled = false }) => (
-  <input
-    type="checkbox"
-    defaultChecked={defaultChecked}
-    disabled={disabled}
-    className="appearance-none w-8.5 h-5 bg-[#454c51] border border-[#5b6369] rounded-5 relative cursor-pointer shrink-0 transition-colors checked:bg-[#718e4b] checked:border-[#8caf5d] after:content-[''] after:absolute after:w-3 after:h-3 after:rounded-full after:bg-white after:top-0.75 after:left-0.75 checked:after:left-4.25 after:transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-  />
-);
 
 export default SettingsPage;
