@@ -18,6 +18,7 @@ import {
   type CodebaseSource,
 } from "../Api/CodeIntelligence";
 import { useAuthStore } from "../store/useAuthStore";
+import LocalFolderPicker from "../components/repositories/LocalFolderPicker";
 
 const panel =
   "min-w-0 overflow-hidden rounded-panel border border-app-line " +
@@ -142,6 +143,8 @@ const RepositoriesPage = () => {
             <span>{error}</span>
           </div>
         )}
+
+        <LocalFolderPicker />
 
         <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-home">
           <section className={panel}>
