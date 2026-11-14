@@ -21,6 +21,8 @@ import AgentRunsPage from "./pages/AgentRunsPage";
 import CodeIntelligencePage from "./pages/CodeIntelligencePage";
 import InvestigationPage from "./pages/InvestigationPage";
 import PatchReviewPage from "./pages/PatchReviewPage";
+import TestLabPage from "./pages/TestLabPage";
+import ApprovalsPage from "./pages/ApprovalsPage";
 
 function PublicOnlyRoute() {
   const isAuthenticated = useAuthStore(
@@ -74,6 +76,16 @@ function App() {
         <Route
           path="/patch-review"
           element={<PatchReviewPage />}
+        />
+
+        <Route
+          path="test-lab"
+          element={<TestLabPage />}
+        />
+
+        <Route
+          path="/approvals"
+          element={<ApprovalsPage />}
         />
 
         <Route
