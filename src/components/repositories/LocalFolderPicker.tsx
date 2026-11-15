@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
+  CheckCircle2,
   ChevronRight,
   FileCode2,
   Folder,
@@ -9,6 +10,19 @@ import {
   LockKeyhole,
   X,
 } from "lucide-react";
+import { useAuthStore } from "../../store/useAuthStore";
+import {
+  activeProjectStorageKey,
+  createProject,
+  getProject,
+  getLatestProjectReview,
+  startProjectReview,
+  uploadProjectSnapshot,
+  type ActivatedProject,
+  type ProjectReview,
+  type SnapshotReceipt,
+} from "../../Api/ProjectActivation";
+import { collectLocalSnapshot } from "./LocalSnapshot";
 
 type BrowserWithPicker = Window & {
   showDirectoryPicker?: (options?: {
@@ -157,9 +171,6 @@ const listDirectory = async (
   const entries: Entry[] = [];
   let truncated = false;
 
-  // The async iterator exists in browsers implementing the
-  // File System Access API. This explicit type avoids relying
-  // on a particular tsconfig DOM iterable library.
   const iterable = directory as unknown as {
     values: () => AsyncIterable<FileSystemHandle>;
   };
@@ -192,6 +203,8 @@ const listDirectory = async (
 };
 
 const LocalFolderPicker = () => {
+  const token = useAuthStore((state) => state.token);
+  const userId = useAuthStore((state) => state.user?.id);
   const [locations, setLocations] = useState<FolderLocation[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [selectedFile, setSelectedFile] = useState("");
@@ -199,9 +212,93 @@ const LocalFolderPicker = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [truncated, setTruncated] = useState(false);
+  const [activeProject, setActiveProject] = useState<ActivatedProject | null>(null);
+  const [receipt, setReceipt] = useState<SnapshotReceipt | null>(null);
+  const [review, setReview] = useState<ProjectReview | null>(null);
+  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
+  const [activationMessage, setActivationMessage] = useState("");
 
   const root = locations[0];
   const current = locations.at(-1);
+
+  useEffect(() => {
+    if (!token || !userId) {
+      setActiveProject(null);
+      return;
+    }
+    const savedId = localStorage.getItem(activeProjectStorageKey(userId));
+    if (!savedId) return;
+    let mounted = true;
+    void getProject(token, savedId).then((project) => {
+      if (mounted) setActiveProject(project);
+    }).catch(() => {
+      if (mounted) {
+        localStorage.removeItem(activeProjectStorageKey(userId));
+        setActiveProject(null);
+      }
+    });
+    return () => { mounted = false; };
+  }, [token, userId]);
+
+  useEffect(() => {
+    if (!token || !activeProject?.id) {
+      setReview(null);
+      return;
+    }
+    let mounted = true;
+    const refresh = async () => {
+      try {
+        const latest = await getLatestProjectReview(token, activeProject.id);
+        if (mounted) setReview(latest);
+      } catch {
+        // No completed or running review yet. Project activation remains valid.
+      }
+    };
+    void refresh();
+    const poll = window.setInterval(() => void refresh(), 4000);
+    return () => { mounted = false; window.clearInterval(poll); };
+  }, [activeProject?.id, token]);
+
+  const confirmSelection = async () => {
+    if (!current || !token || !userId || loading) return;
+    setLoading(true);
+    setError("");
+    setActivationMessage("Preparing eligible source files locally…");
+    try {
+      const snapshot = await collectLocalSnapshot(current.handle);
+      setActivationMessage(`Uploading ${snapshot.files.length} permitted files…`);
+      const projectId = pendingProjectId ?? (await createProject(token, current.name)).id;
+      setPendingProjectId(projectId);
+      const uploaded = await uploadProjectSnapshot(token, projectId, snapshot.files);
+      const project = await getProject(token, projectId);
+      localStorage.setItem(activeProjectStorageKey(userId), project.id);
+      setReceipt(uploaded);
+      setActiveProject(project);
+      setPendingProjectId(null);
+      setActivationMessage(`${snapshot.files.length} source files saved (${snapshot.skippedFiles} skipped). Starting the initial review…`);
+      try {
+        setReview(await startProjectReview(token, project.id));
+        setActivationMessage("Project activated and initial codebase review queued.");
+      } catch {
+        setActivationMessage("Project activated. Review could not start; check the backend migration and review service.");
+      }
+    } catch (cause) {
+      setError(cause instanceof Error && !("response" in cause)
+        ? cause.message
+        : "Project activation failed. Please check the backend and retry.");
+      setActivationMessage("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const forgetActiveProject = () => {
+    if (userId) localStorage.removeItem(activeProjectStorageKey(userId));
+    setActiveProject(null);
+    setReceipt(null);
+    setReview(null);
+    setActivationMessage("Active-project preference cleared. The saved project was not deleted.");
+  };
 
   const openFolder = async () => {
     const picker = (window as BrowserWithPicker)
@@ -226,6 +323,7 @@ const LocalFolderPicker = () => {
       setError("");
       setSelectedFile("");
       setPreview("");
+      setPendingProjectId(null);
 
       const result = await listDirectory(handle);
 
@@ -271,6 +369,7 @@ const LocalFolderPicker = () => {
       setTruncated(result.truncated);
       setSelectedFile("");
       setPreview("");
+      setPendingProjectId(null);
     } catch {
       setError("Unable to read this folder.");
     } finally {
@@ -295,6 +394,7 @@ const LocalFolderPicker = () => {
       setTruncated(result.truncated);
       setSelectedFile("");
       setPreview("");
+      setPendingProjectId(null);
     } catch {
       setError("Unable to navigate to this folder.");
     } finally {
@@ -352,6 +452,7 @@ const LocalFolderPicker = () => {
     setPreview("");
     setError("");
     setTruncated(false);
+    setPendingProjectId(null);
   };
 
   return (
@@ -404,9 +505,8 @@ const LocalFolderPicker = () => {
             className="shrink-0 text-status-blue"
           />
           <p className="text-2xs leading-relaxed text-status-blue">
-            Read-only browser access. Files remain in their
-            original location. Nothing is uploaded, indexed,
-            executed, or modified.
+            Browsing is read-only. Confirm selection to upload an eligible-code
+            snapshot to your private ForgePath project. Original files are never modified.
           </p>
         </div>
 
@@ -536,13 +636,74 @@ const LocalFolderPicker = () => {
             )}
 
             <p className="mt-4 text-micro leading-relaxed text-app-dim">
-              Selected folder: {root.name}
+              Selected folder: {current?.name ?? root.name}
               {current && locations.length > 1
                 ? ` · Browsing ${current.name}`
                 : ""}
             </p>
+
+            <div className="mt-4 space-y-3 rounded-lg border border-app-line bg-app-panel2 p-4">
+              <h3 className="text-xs font-semibold text-app-text">Activate selected codebase</h3>
+              <p className="text-2xs leading-relaxed text-app-muted">
+                Confirming transfers up to 1,000 supported source files (20 MB maximum)
+                to the backend after local filtering. Sensitive filenames and suspected
+                credentials are rejected again by the server. A read-only initial
+                AI review starts automatically after upload and is limited to four
+                model requests. Source code is never executed or modified.
+              </p>
+              <button
+                type="button"
+                onClick={() => void confirmSelection()}
+                disabled={loading || !token || !current}
+                className="btn btn-primary disabled:opacity-50"
+              >
+                {loading ? <LoaderCircle size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                Confirm selection: {current?.name}
+              </button>
+              {!token && <p className="text-2xs text-status-amber">Sign in before activating a project.</p>}
+            </div>
           </>
         )}
+
+        {activeProject && (
+          <div className="mt-4 rounded-lg border border-status-green-line bg-status-green-bg p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-status-green">
+                <CheckCircle2 size={16} /> Active project: {activeProject.name}
+              </div>
+              <button type="button" onClick={forgetActiveProject} className="btn text-xs">
+                Clear active project
+              </button>
+            </div>
+            <p className="mt-2 break-all font-mono text-micro text-app-muted">
+              Project ID: {activeProject.id}
+            </p>
+            {receipt && <p className="mt-2 text-2xs text-status-green">
+              {receipt.file_count} source files stored · {receipt.total_bytes.toLocaleString()} bytes
+            </p>}
+          </div>
+        )}
+        {activeProject && review && (
+          <section className="mt-4 rounded-lg border border-app-line bg-app-panel2 p-4" aria-label="Initial codebase review">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-semibold text-app-text">Automated codebase review</h3>
+              <span className="rounded-md border border-app-line px-2 py-1 text-micro text-app-accent">
+                {review.status === "partial" ? "Partial — review budget reached" : review.status}
+              </span>
+            </div>
+            <p className="mt-2 text-2xs text-app-muted">
+              Inventoried {review.files_scanned} files · AI-inspected {review.files_reviewed} files ·
+              Model calls {review.ai_calls}/{review.max_ai_calls}
+            </p>
+            {review.error_message && <p role="alert" className="mt-2 text-2xs text-status-amber">{review.error_message}</p>}
+            {review.result_text && (
+              <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border border-app-line bg-app-bg p-3 font-mono text-2xs leading-relaxed text-app-text">
+                {review.result_text}
+              </pre>
+            )}
+          </section>
+        )}
+        {activationMessage && <p role="status" className="mt-3 text-2xs text-app-muted">{activationMessage}</p>}
       </div>
     </section>
   );
