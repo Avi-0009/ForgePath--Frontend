@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getAIConfiguration, saveAIConfiguration, testAIConfiguration, deleteAIConfiguration } from "../Api/AIConfiguration";
+import { useAuthStore } from "../store/useAuthStore";
 import {
   Activity,
   AlertTriangle,
@@ -27,6 +29,8 @@ const tabs = [
 ] as const;
 
 const providers = [
+  { value: "nvidia", label: "NVIDIA" },
+  { value: "huggingface", label: "Hugging Face" },
   { value: "openai", label: "OpenAI" },
   { value: "anthropic", label: "Anthropic" },
   { value: "google", label: "Google Gemini" },
@@ -34,6 +38,12 @@ const providers = [
   { value: "groq", label: "Groq" },
   { value: "custom", label: "OpenAI-compatible API" },
 ] as const;
+
+const availableModels: Record<string, { id: string; label: string }[]> = {
+  nvidia: [{ id: "nvidia/nemotron-3-ultra-550b-a55b", label: "Nemotron 3 Ultra" }],
+  huggingface: [{ id: "Qwen/Qwen3-Coder-Next", label: "Qwen3 Coder Next" }],
+  openai: [{ id: "gpt-6-luna", label: "GPT-6 Luna" }],
+};
 
 const panel =
   "min-w-0 overflow-hidden rounded-panel border " +
@@ -83,7 +93,68 @@ const SectionTitle = ({
 const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>("general");
   const [mode, setMode] = useState<CredentialMode>("platform");
-  const [provider, setProvider] = useState("openai");
+  const [provider, setProvider] = useState("nvidia");
+  const [modelId, setModelId] = useState("nvidia/nemotron-3-ultra-550b-a55b");
+  const [apiKey, setApiKey] = useState("");
+  const [hasSavedKey, setHasSavedKey] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const token = useAuthStore((state) => state.token);
+
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    getAIConfiguration(token).then((config : any) => {
+      if (!active) return;
+      if (config.provider && config.model_identifier) {
+        setProvider(config.provider);
+        setModelId(config.model_identifier);
+        setMode("byok");
+      }
+      setHasSavedKey(config.has_api_key);
+    }).catch(() => { if (active) setMessage("Unable to load your saved AI settings."); });
+    return () => { active = false; };
+  }, [token]);
+
+  const saveSettings = async () => {
+    if (!token) { setMessage("Sign in to save your AI settings."); return; }
+    if (!modelId.trim() || (!apiKey.trim() && !hasSavedKey)) {
+      setMessage("Enter a model identifier and API key."); return;
+    }
+    setIsBusy(true);
+    setMessage("");
+    try {
+      const saved = await saveAIConfiguration(token, provider, modelId.trim(), apiKey);
+      setHasSavedKey(saved.has_api_key);
+      setApiKey("");
+      setMessage("Saved securely. This model will be used for your AI requests.");
+    } catch { setMessage("Could not save. Check the provider, model and API key."); }
+    finally { setIsBusy(false); }
+  };
+
+  const testSettings = async () => {
+    if (!token) return;
+    setIsBusy(true);
+    setMessage("");
+    try {
+      await testAIConfiguration(token);
+      setMessage("Connection successful.");
+    } catch { setMessage("Connection failed. Check the saved key and model access."); }
+    finally { setIsBusy(false); }
+  };
+
+  const removeSettings = async () => {
+    if (!token) return;
+    setIsBusy(true);
+    try {
+      await deleteAIConfiguration(token);
+      setHasSavedKey(false);
+      setApiKey("");
+      setMode("platform");
+      setMessage("Personal configuration removed. ForgePath AI is now selected.");
+    } catch { setMessage("Unable to remove the configuration."); }
+    finally { setIsBusy(false); }
+  };
 
   return (
     <div className="min-w-0 bg-app-bg px-3 py-5 text-app-text sm:px-6 sm:py-7 lg:px-9">
@@ -111,10 +182,8 @@ const SettingsPage = () => {
           />
           <div className="text-xs leading-relaxed text-status-blue">
             <strong>Backend-controlled settings.</strong>{" "}
-            Provider credentials, security boundaries, and run
-            limits must be enforced by the server. This page
-            does not claim to save settings for which a backend
-            API has not yet been connected.
+            Personal API keys are encrypted on the server. Only NVIDIA,
+            OpenAI, and Hugging Face are currently connected.
           </div>
         </div>
 
@@ -221,7 +290,7 @@ const SettingsPage = () => {
                       </p>
                       <span className="mt-3 block text-micro text-app-accent">
                         {mode === "platform"
-                          ? "Selected for preview"
+                          ? (hasSavedKey ? "Remove personal settings to activate" : "Selected")
                           : "Select mode"}
                       </span>
                     </button>
@@ -250,7 +319,7 @@ const SettingsPage = () => {
                       </p>
                       <span className="mt-3 block text-micro text-app-accent">
                         {mode === "byok"
-                          ? "Selected for preview"
+                          ? "Selected"
                           : "Select mode"}
                       </span>
                     </button>
@@ -275,8 +344,9 @@ const SettingsPage = () => {
                             never receives the provider API key.
                           </p>
                           <p className="mt-3 text-2xs text-status-amber">
-                            Provider availability and model name
-                            have not been verified by a settings API.
+                            {hasSavedKey
+                              ? "A saved personal configuration remains active until you remove it."
+                              : "Using the server-managed default model."}
                           </p>
                         </div>
                       </div>
@@ -293,9 +363,11 @@ const SettingsPage = () => {
                         <select
                           id="model-provider"
                           value={provider}
-                          onChange={(event) =>
-                            setProvider(event.target.value)
-                          }
+                          onChange={(event) => {
+                            const nextProvider = event.target.value;
+                            setProvider(nextProvider);
+                            setModelId(availableModels[nextProvider]?.[0]?.id ?? "");
+                          }}
                           className="w-full rounded-lg border border-app-line bg-app-bg px-3 py-2.5 text-xs text-app-text"
                         >
                           {providers.map((option) => (
@@ -318,11 +390,18 @@ const SettingsPage = () => {
                         </label>
                         <input
                           id="model-name"
-                          type="text"
-                          placeholder="Available after backend integration"
-                          disabled
-                          className="w-full rounded-lg border border-app-line bg-app-bg px-3 py-2.5 text-xs text-app-muted disabled:opacity-60"
+                          list="suggested-models"
+                          value={modelId}
+                          onChange={(event) => setModelId(event.target.value)}
+                          placeholder="Enter your provider's model identifier"
+                          maxLength={200}
+                          className="w-full rounded-lg border border-app-line bg-app-bg px-3 py-2.5 text-xs text-app-text"
                         />
+                        <datalist id="suggested-models">
+                          {(availableModels[provider] ?? []).map((model) => (
+                            <option key={model.id} value={model.id}>{model.label}</option>
+                          ))}
+                        </datalist>
                       </div>
 
                       <div>
@@ -335,12 +414,29 @@ const SettingsPage = () => {
                         <input
                           id="provider-key"
                           type="password"
-                          placeholder="Secure credential storage not connected"
-                          disabled
+                          value={apiKey}
+                          onChange={(event) => setApiKey(event.target.value)}
+                          placeholder={hasSavedKey ? "Saved key hidden — leave blank to keep it" : "Enter your API key"}
                           autoComplete="off"
-                          className="w-full rounded-lg border border-app-line bg-app-bg px-3 py-2.5 text-xs text-app-muted disabled:opacity-60"
+                          className="w-full rounded-lg border border-app-line bg-app-bg px-3 py-2.5 text-xs text-app-text"
                         />
                       </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" disabled={isBusy || !availableModels[provider]}
+                          onClick={saveSettings} className="rounded-lg bg-app-accent px-4 py-2 text-xs font-semibold text-app-bg disabled:opacity-50">
+                          {isBusy ? "Working…" : "Save configuration"}
+                        </button>
+                        <button type="button" disabled={isBusy || !hasSavedKey}
+                          onClick={testSettings} className="rounded-lg border border-app-line px-4 py-2 text-xs disabled:opacity-50">
+                          Test saved connection
+                        </button>
+                        <button type="button" disabled={isBusy || !hasSavedKey}
+                          onClick={removeSettings} className="rounded-lg border border-app-line px-4 py-2 text-xs disabled:opacity-50">
+                          Remove personal key
+                        </button>
+                      </div>
+                      {message && <p role="status" className="text-xs text-app-muted">{message}</p>}
 
                       <div className="flex items-start gap-2 rounded-lg border border-status-amber-line bg-status-amber-bg p-3">
                         <AlertTriangle
@@ -349,11 +445,9 @@ const SettingsPage = () => {
                           aria-hidden="true"
                         />
                         <p className="text-2xs leading-relaxed text-status-amber">
-                          BYOK needs authenticated, per-user
-                          encrypted credential storage and a
-                          model-routing service. Credentials
-                          will not be collected until those
-                          backend protections exist.
+                          Only NVIDIA, OpenAI, and Hugging Face have backend adapters.
+                          Other providers remain unavailable until their secure integrations are added.
+                          Connection testing sends a small paid request to your provider.
                         </p>
                       </div>
                     </div>
@@ -381,8 +475,7 @@ const SettingsPage = () => {
                   </div>
 
                   <p className="text-micro text-app-dim">
-                    These mode selections are not persisted
-                    or applied to AI requests yet.
+                    Changes are applied only after saving. Your API key is never returned to this page.
                   </p>
                 </div>
               </>
