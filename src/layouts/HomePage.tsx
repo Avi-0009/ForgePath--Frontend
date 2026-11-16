@@ -26,6 +26,7 @@ import {
   type OverviewTestSummary,
 } from "../Api/Overview";
 import { useAuthStore } from "../store/useAuthStore";
+import ActiveProjectReview from "../components/reviews/ActiveProjectReview";
 
 const HISTORY_LIMIT = 50;
 
@@ -542,6 +543,10 @@ export default function HomePage() {
           patches remain proposals until you approve them.
           ForgePath currently supports configured local workspaces.
         </CalloutBanner>
+
+        <div className="mb-5">
+          <ActiveProjectReview />
+        </div>
 
         <div className="mb-4 flex justify-end">
           <button

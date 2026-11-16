@@ -25,6 +25,7 @@ import {
 import { getTaskHistory } from "../Api/Tasks";
 import { useAuthStore } from "../store/useAuthStore";
 import { useWorkspaceStore } from "../store/useWorkspaceStore";
+import ActiveProjectReview from "../components/reviews/ActiveProjectReview";
 
 type Severity = ReviewFinding["severity"];
 type SeverityFilter = "all" | Severity;
@@ -414,6 +415,8 @@ const InvestigationPage = () => {
             </Link>
           </div>
         </header>
+
+        <ActiveProjectReview detailed />
 
         {/* Evidence-first callout */}
         <div className="flex items-start gap-3 rounded-callout border border-status-blue-line bg-status-blue-bg p-3.5">

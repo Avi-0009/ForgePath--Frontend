@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import {
   Activity,
@@ -16,6 +15,7 @@ import {
   Terminal,
 } from "lucide-react";
 import { HTTPError } from "ky";
+import { Link } from "react-router-dom";
 
 import {
   getAgentRunDetail,
@@ -25,6 +25,8 @@ import {
   type WorkflowStatus,
 } from "../Api/AgentRuns";
 import { useAuthStore } from "../store/useAuthStore";
+import { getLatestProjectReview, type ProjectReview } from "../Api/ProjectActivation";
+import { useActiveProjectId } from "../store/useActiveProjectId";
 
 const approvalStatuses = new Set<WorkflowStatus>([
   "awaiting_plan_approval",
@@ -92,6 +94,30 @@ const panelClass =
 
 export default function AgentRunsPage() {
   const token = useAuthStore((state) => state.token);
+  const activeProjectId = useActiveProjectId();
+  const [projectReview, setProjectReview] = useState<ProjectReview | null>(null);
+
+  useEffect(() => {
+    if (!token || !activeProjectId) {
+      setProjectReview(null);
+      return;
+    }
+    let cancelled = false;
+    const refreshReview = async () => {
+      try {
+        const latest = await getLatestProjectReview(token, activeProjectId);
+        if (!cancelled) setProjectReview(latest);
+      } catch {
+        if (!cancelled) setProjectReview(null);
+      }
+    };
+    void refreshReview();
+    const interval = window.setInterval(() => void refreshReview(), 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [token, activeProjectId]);
 
   const [runs, setRuns] = useState<TaskHistoryItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -233,6 +259,35 @@ export default function AgentRunsPage() {
   return (
     <div className="min-w-0 bg-app-bg px-3 py-5 text-app-text sm:px-6 sm:py-7 lg:px-9">
       <div className="mx-auto max-w-app space-y-5">
+        {activeProjectId && (
+          <section className={`${panelClass} p-4 sm:p-5`} aria-label="Active project review">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-app-text">Initial codebase review</h2>
+                <p className="mt-1 text-xs text-app-muted">
+                  {projectReview
+                    ? `${projectReview.files_scanned} files inventoried · ${projectReview.files_reviewed} AI-inspected · ${projectReview.ai_calls}/${projectReview.max_ai_calls} model calls`
+                    : "No review found for the active project yet."}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                {projectReview && (
+                  <span className="rounded-md border border-app-line px-2 py-1 text-xs text-app-text">
+                    {projectReview.status}
+                  </span>
+                )}
+                <Link to="/repositories" className="btn text-xs">
+                  View review
+                </Link>
+              </div>
+            </div>
+            {projectReview?.status === "failed" && (
+              <p className="mt-3 text-xs text-status-amber">
+                {projectReview.error_message ?? "Review failed."}
+              </p>
+            )}
+          </section>
+        )}
         {/* Heading */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">

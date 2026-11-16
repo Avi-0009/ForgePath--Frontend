@@ -62,10 +62,15 @@ export const startProjectReview = (token: string, projectId: string) =>
     headers: headers(token),
   }).json<ProjectReview>();
 
-export const getLatestProjectReview = (token: string, projectId: string) =>
-  apiClient.get(`projects/${projectId}/reviews/latest`, {
-    headers: headers(token),
-  }).json<ProjectReview>();
+export const getLatestProjectReview = (
+  token: string,
+  projectId: string,
+) =>
+  apiClient
+    .get(`projects/${projectId}/reviews/latest`, {
+      headers: headers(token),
+    })
+    .json<ProjectReview | null>();
 
 export const activeProjectStorageKey = (userId: string) =>
   `forgepath:active-project:${userId}`;

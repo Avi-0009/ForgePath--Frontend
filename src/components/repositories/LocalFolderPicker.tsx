@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
 import {
-  activeProjectStorageKey,
   createProject,
   getProject,
   getLatestProjectReview,
@@ -23,6 +22,7 @@ import {
   type SnapshotReceipt,
 } from "../../Api/ProjectActivation";
 import { collectLocalSnapshot } from "./LocalSnapshot";
+import { setActiveProjectId, useActiveProjectId } from "../../store/useActiveProjectId";
 
 type BrowserWithPicker = Window & {
   showDirectoryPicker?: (options?: {
@@ -205,6 +205,7 @@ const listDirectory = async (
 const LocalFolderPicker = () => {
   const token = useAuthStore((state) => state.token);
   const userId = useAuthStore((state) => state.user?.id);
+  const activeProjectId = useActiveProjectId();
   const [locations, setLocations] = useState<FolderLocation[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [selectedFile, setSelectedFile] = useState("");
@@ -226,19 +227,19 @@ const LocalFolderPicker = () => {
       setActiveProject(null);
       return;
     }
-    const savedId = localStorage.getItem(activeProjectStorageKey(userId));
+    const savedId = activeProjectId;
     if (!savedId) return;
     let mounted = true;
     void getProject(token, savedId).then((project) => {
       if (mounted) setActiveProject(project);
     }).catch(() => {
       if (mounted) {
-        localStorage.removeItem(activeProjectStorageKey(userId));
+        setActiveProjectId(userId, null);
         setActiveProject(null);
       }
     });
     return () => { mounted = false; };
-  }, [token, userId]);
+  }, [token, userId, activeProjectId]);
 
   useEffect(() => {
     if (!token || !activeProject?.id) {
@@ -266,12 +267,23 @@ const LocalFolderPicker = () => {
     setActivationMessage("Preparing eligible source files locally…");
     try {
       const snapshot = await collectLocalSnapshot(current.handle);
+
+      console.info("ForgePath snapshot summary:", {
+        files: snapshot.files.length,
+        directories: snapshot.scannedDirectories,
+        skippedFiles: snapshot.skippedFiles,
+        skippedDirectories: snapshot.skippedDirectories,
+        includesSourceDirectory: snapshot.files.some(
+          (file) => file.relative_path.startsWith("src/"),
+        ),
+      });
+
       setActivationMessage(`Uploading ${snapshot.files.length} permitted files…`);
       const projectId = pendingProjectId ?? (await createProject(token, current.name)).id;
       setPendingProjectId(projectId);
       const uploaded = await uploadProjectSnapshot(token, projectId, snapshot.files);
       const project = await getProject(token, projectId);
-      localStorage.setItem(activeProjectStorageKey(userId), project.id);
+      setActiveProjectId(userId, project.id);
       setReceipt(uploaded);
       setActiveProject(project);
       setPendingProjectId(null);
@@ -293,7 +305,7 @@ const LocalFolderPicker = () => {
   };
 
   const forgetActiveProject = () => {
-    if (userId) localStorage.removeItem(activeProjectStorageKey(userId));
+    if (userId) setActiveProjectId(userId, null);
     setActiveProject(null);
     setReceipt(null);
     setReview(null);
@@ -319,11 +331,36 @@ const LocalFolderPicker = () => {
         mode: "read",
       });
 
+      try {
+        const sourceDirectory = await handle.getDirectoryHandle("src");
+
+        console.info("ForgePath source directory:", {
+          selectedFolder: handle.name,
+          sourceFound: true,
+          sourceName: sourceDirectory.name,
+        });
+      } catch (error) {
+        console.error(
+          "Selected folder does not expose src/:",
+          error,
+        );
+      }
+
       setLoading(true);
       setError("");
       setSelectedFile("");
       setPreview("");
       setPendingProjectId(null);
+
+      const previewSnapshot = await collectLocalSnapshot(handle);
+
+        console.info("ForgePath full snapshot check:", {
+          eligibleFiles: previewSnapshot.files.length,
+          directories: previewSnapshot.scannedDirectories,
+          includesSourceDirectory: previewSnapshot.files.some(
+            (file) => file.relative_path.startsWith("src/"),
+          ),
+        });
 
       const result = await listDirectory(handle);
 

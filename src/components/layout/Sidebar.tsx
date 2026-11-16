@@ -273,7 +273,7 @@ export default function Sidebar({
             </strong>
 
             <p className="mt-1 text-micro leading-relaxed text-app-muted">
-              Listening on this device. No public workspace.
+              Listening on this device.
             </p>
           </div>
         </div>

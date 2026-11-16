@@ -41,6 +41,8 @@ type BuildResult = {
   files: SnapshotFile[];
   totalBytes: number;
   skippedFiles: number;
+  scannedDirectories: number;
+  skippedDirectories: number;
 };
 
 export const collectLocalSnapshot = async (
@@ -49,10 +51,13 @@ export const collectLocalSnapshot = async (
   const files: SnapshotFile[] = [];
   let totalBytes = 0;
   let skippedFiles = 0;
+  let scannedDirectories = 0; 
+  let skippedDirectories = 0;
   const encoder = new TextEncoder();
   const decoder = new TextDecoder("utf-8", { fatal: true });
 
   const scan = async (directory: FileSystemDirectoryHandle, parents: string[]): Promise<void> => {
+    scannedDirectories += 1;
     const entries = directory as unknown as {
       values: () => AsyncIterable<FileSystemHandle>;
     };
@@ -63,7 +68,10 @@ export const collectLocalSnapshot = async (
         continue;
       }
       if (handle.kind === "directory") {
-        if (excludedDirectories.has(handle.name.toLowerCase())) continue;
+        if (excludedDirectories.has(handle.name.toLowerCase())) {
+          skippedDirectories += 1;
+          continue;
+        }
         if (parents.length + 2 > MAX_DEPTH) {
           throw new Error("Folder depth exceeds the 12-level snapshot limit.");
         }
@@ -97,6 +105,13 @@ export const collectLocalSnapshot = async (
   };
 
   await scan(root, []);
-  if (files.length === 0) throw new Error("No eligible source files were found.");
-  return { files, totalBytes, skippedFiles };
+  if (files.length === 0)
+    throw new Error("No eligible source files were found.");
+  return {
+    files,
+    totalBytes,
+    skippedFiles,
+    scannedDirectories,
+    skippedDirectories,
+  };
 };
