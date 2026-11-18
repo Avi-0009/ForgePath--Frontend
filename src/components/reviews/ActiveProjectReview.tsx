@@ -6,6 +6,10 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { HTTPError } from "ky";
+import {
+  createProjectReviewTask,
+  getProjectReviewTasks,
+} from "../../Api/ProjectReviewTasks";
 
 import {
   getLatestProjectReview,
@@ -35,6 +39,14 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [severityFilter, setSeverityFilter] = useState<"all" | ProjectFinding["severity"]>("all");
+
+  const [creatingIndex, setCreatingIndex] =
+    useState<number | null>(null);
+
+  const [createdIndices, setCreatedIndices] =
+    useState<Set<number>>(() => new Set());
+
+  const [taskError, setTaskError] = useState("");
 
   useEffect(() => {
     setProject(null);
@@ -105,6 +117,77 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
     };
   }, [token, projectId]);
 
+  useEffect(() => {
+    setCreatedIndices(new Set());
+    setTaskError("");
+
+    if (!detailed || !token || !projectId || !review?.id) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void getProjectReviewTasks(token, projectId)
+      .then((response) => {
+        if (!cancelled) {
+          setCreatedIndices(
+            new Set(
+              response.items
+                .filter(
+                  (task) => task.review_id === review.id,
+                )
+                .map((task) => task.finding_index),
+            ),
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTaskError(
+            "Could not check your existing review tasks.",
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [detailed, token, projectId, review?.id]);
+
+
+  const createTask = async (index: number) => {
+    if (
+      !token ||
+      !projectId ||
+      !review ||
+      creatingIndex !== null
+    ) {
+      return;
+    }
+
+    setCreatingIndex(index);
+    setTaskError("");
+
+    try {
+      await createProjectReviewTask(
+        token,
+        projectId,
+        review.id,
+        index,
+      );
+
+      setCreatedIndices(
+        (previous) => new Set([...previous, index]),
+      );
+    } catch {
+      setTaskError(
+        "Could not save that task. Please try again.",
+      );
+    } finally {
+      setCreatingIndex(null);
+    }
+  };
+
   if (!projectId) {
     return (
       <section className="rounded-panel border border-app-line bg-app-panel p-5">
@@ -128,12 +211,16 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
 
   const findings = review?.findings ?? [];
 
-  const visibleFindings =
-    severityFilter === "all"
-      ? findings
-      : findings.filter(
-          (finding) => finding.severity === severityFilter,
-        );
+  const visibleFindings = findings
+    .map((finding, index) => ({
+      finding,
+      index,
+    }))
+    .filter(
+      ({ finding }) =>
+        severityFilter === "all" ||
+        finding.severity === severityFilter,
+    );
 
   return (
     <section className="min-w-0 overflow-hidden rounded-panel border border-app-line bg-app-panel p-4 shadow-panel sm:p-5">
@@ -246,7 +333,16 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
             </label>
           </div>
 
-          {visibleFindings.map((finding, index) => (
+          {taskError && (
+            <p
+              role="alert"
+              className="text-xs text-status-red"
+            >
+              {taskError}
+            </p>
+          )}
+
+          {visibleFindings.map(({ finding, index }) => (
             <article
               key={`${finding.path}:${index}`}
               className="min-w-0 rounded-lg border border-app-line bg-app-bg p-3 sm:p-4"
@@ -285,6 +381,39 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
                 Verify this suggestion against the source before
                 creating a task or patch.
               </p>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={
+                    creatingIndex !== null ||
+                    createdIndices.has(index) ||
+                    !review ||
+                    (
+                      review.status !== "completed" &&
+                      review.status !== "partial"
+                    )
+                  }
+                  onClick={() => void createTask(index)}
+                  className="btn btn-primary text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {createdIndices.has(index)
+                    ? "Added to Tasks"
+                    : creatingIndex === index
+                      ? "Creating..."
+                      : "Create review task"}
+                </button>
+
+                {createdIndices.has(index) && (
+                  <Link
+                    to="/tasks"
+                    className="text-xs font-semibold text-app-accent hover:underline"
+                  >
+                    View in Tasks
+                  </Link>
+                )}
+              </div>
+
             </article>
           ))}
 

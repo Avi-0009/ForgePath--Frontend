@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
@@ -25,6 +24,7 @@ import {
   type WorkflowStatus,
 } from "../Api/Tasks";
 import { useAuthStore } from "../store/useAuthStore";
+import ProjectReviewTasksPanel from "../components/reviews/ProjectReviewTasksPanel";
 
 type TaskFilter =
   | "all"
@@ -304,6 +304,8 @@ export default function TasksPage() {
             New task
           </button>
         </div>
+
+        <ProjectReviewTasksPanel />
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <label className="flex min-h-9 w-full min-w-0 items-center gap-2 rounded-lg border border-app-line bg-app-panel px-3 text-app-muted sm:w-75">
