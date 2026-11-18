@@ -11,6 +11,12 @@ export type ActivatedProject = {
   status: string;
 };
 
+export type ProjectListResponse = {
+  items: ActivatedProject[];
+  limit: number;
+  offset: number;
+};
+
 export type SnapshotReceipt = {
   project_id: string;
   snapshot_id: string;
@@ -18,6 +24,15 @@ export type SnapshotReceipt = {
   total_bytes: number;
   sha256: string;
   status: string;
+};
+
+export type ProjectFinding = {
+  path: string;
+  title: string;
+  severity: "critical" | "high" | "medium" | "low" | "info";
+  evidence: string;
+  explanation: string;
+  verification_status: "unverified";
 };
 
 export type ProjectReview = {
@@ -32,6 +47,7 @@ export type ProjectReview = {
   max_output_tokens_per_call: number;
   result_text: string | null;
   error_message: string | null;
+  findings?: ProjectFinding[];
 };
 
 const headers = (token: string) => ({ Authorization: `Bearer ${token}` });
@@ -46,6 +62,17 @@ export const getProject = (token: string, projectId: string) =>
   apiClient.get(`projects/${projectId}`, {
     headers: headers(token),
   }).json<ActivatedProject>();
+
+export const listProjects = (token: string) =>
+  apiClient
+    .get("projects", {
+      headers: headers(token),
+      searchParams: {
+        limit: 100,
+        offset: 0,
+      },
+    })
+    .json<ProjectListResponse>();
 
 export const uploadProjectSnapshot = (
   token: string,

@@ -17,6 +17,7 @@ import {
   getLatestProjectReview,
   startProjectReview,
   uploadProjectSnapshot,
+  listProjects,
   type ActivatedProject,
   type ProjectReview,
   type SnapshotReceipt,
@@ -219,8 +220,46 @@ const LocalFolderPicker = () => {
   const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
   const [activationMessage, setActivationMessage] = useState("");
 
+  const [ownedProjects, setOwnedProjects] = useState<ActivatedProject[]>([]);
+
+  const [projectTarget, setProjectTarget] = useState("");
+
+  const [preparedSnapshot, setPreparedSnapshot] = useState<{
+    handle: FileSystemDirectoryHandle;
+    files: number;
+    bytes: number;
+    skipped: number;
+    directories: number;
+  } | null>(null);
+
   const root = locations[0];
   const current = locations.at(-1);
+
+  useEffect(() => {
+    if (!token) {
+      setOwnedProjects([]);
+      setProjectTarget("");
+      return;
+    }
+
+    let mounted = true;
+
+    void listProjects(token)
+      .then(({ items }) => {
+        if (mounted) {
+          setOwnedProjects(
+            items.filter((project) => project.status !== "archived"),
+          );
+        }
+      })
+      .catch(() => {
+        if (mounted) setOwnedProjects([]);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [token]);
 
   useEffect(() => {
     if (!token || !userId) {
@@ -228,7 +267,11 @@ const LocalFolderPicker = () => {
       return;
     }
     const savedId = activeProjectId;
-    if (!savedId) return;
+    if (!savedId) {
+      setActiveProject(null);
+      setReview(null);
+      return;
+    }
     let mounted = true;
     void getProject(token, savedId).then((project) => {
       if (mounted) setActiveProject(project);
@@ -260,44 +303,123 @@ const LocalFolderPicker = () => {
     return () => { mounted = false; window.clearInterval(poll); };
   }, [activeProject?.id, token]);
 
-  const confirmSelection = async () => {
-    if (!current || !token || !userId || loading) return;
+  const previewSelection = async () => {
+    if (!current || loading) return;
+
     setLoading(true);
     setError("");
-    setActivationMessage("Preparing eligible source files locally…");
+    setPreparedSnapshot(null);
+
     try {
       const snapshot = await collectLocalSnapshot(current.handle);
 
-      console.info("ForgePath snapshot summary:", {
+      setPreparedSnapshot({
+        handle: current.handle,
         files: snapshot.files.length,
+        bytes: snapshot.totalBytes,
+        skipped: snapshot.skippedFiles,
         directories: snapshot.scannedDirectories,
-        skippedFiles: snapshot.skippedFiles,
-        skippedDirectories: snapshot.skippedDirectories,
-        includesSourceDirectory: snapshot.files.some(
-          (file) => file.relative_path.startsWith("src/"),
-        ),
       });
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to preview this folder.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      setActivationMessage(`Uploading ${snapshot.files.length} permitted files…`);
-      const projectId = pendingProjectId ?? (await createProject(token, current.name)).id;
+  const confirmSelection = async () => {
+    if (
+      !current ||
+      !token ||
+      !userId ||
+      !projectTarget ||
+      loading ||
+      preparedSnapshot?.handle !== current.handle
+    ) {
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setActivationMessage("Preparing eligible source files locally…");
+
+    try {
+      const snapshot = await collectLocalSnapshot(current.handle);
+
+      if (
+        snapshot.files.length !== preparedSnapshot.files ||
+        snapshot.totalBytes !== preparedSnapshot.bytes
+      ) {
+        setPreparedSnapshot(null);
+        setProjectTarget("");
+
+        throw new Error(
+          "Files changed since preview. Preview the folder again before confirming.",
+        );
+      }
+
+      setActivationMessage(
+        `Uploading ${snapshot.files.length} permitted files…`,
+      );
+
+      const projectId =
+        pendingProjectId ??
+        (projectTarget === "new"
+          ? (await createProject(token, current.name)).id
+          : projectTarget);
+
       setPendingProjectId(projectId);
-      const uploaded = await uploadProjectSnapshot(token, projectId, snapshot.files);
+
+      const uploaded = await uploadProjectSnapshot(
+        token,
+        projectId,
+        snapshot.files,
+      );
+
       const project = await getProject(token, projectId);
+
       setActiveProjectId(userId, project.id);
       setReceipt(uploaded);
       setActiveProject(project);
+
+      setOwnedProjects((previous) => [
+        project,
+        ...previous.filter((item) => item.id !== project.id),
+      ]);
+
+      setProjectTarget(project.id);
+      setPreparedSnapshot(null);
       setPendingProjectId(null);
-      setActivationMessage(`${snapshot.files.length} source files saved (${snapshot.skippedFiles} skipped). Starting the initial review…`);
+
+      setActivationMessage(
+        `${snapshot.files.length} source files saved ` +
+        `(${snapshot.skippedFiles} skipped). ` +
+        "Starting the initial review…",
+      );
+
       try {
         setReview(await startProjectReview(token, project.id));
-        setActivationMessage("Project activated and initial codebase review queued.");
+
+        setActivationMessage(
+          "Project activated and initial codebase review queued.",
+        );
       } catch {
-        setActivationMessage("Project activated. Review could not start; check the backend migration and review service.");
+        setActivationMessage(
+          "Project activated. Review could not start; " +
+          "check the backend migration and review service.",
+        );
       }
     } catch (cause) {
-      setError(cause instanceof Error && !("response" in cause)
-        ? cause.message
-        : "Project activation failed. Please check the backend and retry.");
+      setError(
+        cause instanceof Error && !("response" in cause)
+          ? cause.message
+          : "Project activation failed. Please check the backend and retry.",
+      );
+
       setActivationMessage("");
     } finally {
       setLoading(false);
@@ -680,24 +802,131 @@ const LocalFolderPicker = () => {
             </p>
 
             <div className="mt-4 space-y-3 rounded-lg border border-app-line bg-app-panel2 p-4">
-              <h3 className="text-xs font-semibold text-app-text">Activate selected codebase</h3>
+              <h3 className="text-xs font-semibold text-app-text">
+                Activate selected codebase
+              </h3>
+
               <p className="text-2xs leading-relaxed text-app-muted">
-                Confirming transfers up to 1,000 supported source files (20 MB maximum)
-                to the backend after local filtering. Sensitive filenames and suspected
-                credentials are rejected again by the server. A read-only initial
-                AI review starts automatically after upload and is limited to four
-                model requests. Source code is never executed or modified.
+                Preview permitted source files locally before uploading.
+                Confirmation uploads only eligible text files and starts
+                a read-only review with at most four model requests.
+                Original files are never modified.
               </p>
+
+              {/* PREVIEW FILES */}
+              <button
+                type="button"
+                onClick={() => void previewSelection()}
+                disabled={loading || !current}
+                className="btn disabled:opacity-50"
+              >
+                {loading ? (
+                  <LoaderCircle
+                    size={15}
+                    className="animate-spin"
+                  />
+                ) : (
+                  <FileCode2 size={15} />
+                )}
+
+                Preview eligible files
+              </button>
+
+              {/* SNAPSHOT PREVIEW RESULT */}
+              {preparedSnapshot &&
+                current &&
+                preparedSnapshot.handle === current.handle && (
+                  <div
+                    role="status"
+                    className="rounded-lg border border-status-blue-line bg-status-blue-bg p-3 text-2xs text-status-blue"
+                  >
+                    {preparedSnapshot.files} eligible files ·{" "}
+                    {preparedSnapshot.directories} directories scanned ·{" "}
+                    {preparedSnapshot.skipped} excluded entries ·{" "}
+                    {preparedSnapshot.bytes.toLocaleString()} bytes.
+
+                    <p className="mt-1">
+                      No files have been uploaded and no AI requests
+                      have been made.
+                    </p>
+                  </div>
+                )}
+
+              {/* SELECT PROJECT */}
+              <label
+                htmlFor="forgepath-project-target"
+                className="block text-2xs font-semibold text-app-text"
+              >
+                Save to project
+              </label>
+
+              <select
+                id="forgepath-project-target"
+                value={projectTarget}
+                onChange={(event) => {
+                  setProjectTarget(event.target.value);
+                  setPendingProjectId(null);
+                }}
+                disabled={loading || !token}
+                className="w-full rounded-lg border border-app-line bg-app-bg p-2 text-xs text-app-text"
+              >
+                <option value="" disabled>
+                  Select an existing project or create a new one
+                </option>
+
+                <option value="new">
+                  Create a new project
+                </option>
+
+                {ownedProjects.map((project) => (
+                  <option
+                    key={project.id}
+                    value={project.id}
+                  >
+                    Update {project.name} ({project.id.slice(0, 8)})
+                  </option>
+                ))}
+              </select>
+
+              {/* EXISTING PROJECT WARNING */}
+              {projectTarget && projectTarget !== "new" && (
+                <p className="text-2xs text-status-amber">
+                  You selected an existing project. Its current
+                  snapshot will be replaced as the active version;
+                  earlier review history is retained.
+                </p>
+              )}
+
+              {/* CONFIRM SELECTION */}
               <button
                 type="button"
                 onClick={() => void confirmSelection()}
-                disabled={loading || !token || !current}
+                disabled={
+                  loading ||
+                  !token ||
+                  !current ||
+                  !projectTarget ||
+                  preparedSnapshot?.handle !== current.handle
+                }
                 className="btn btn-primary disabled:opacity-50"
               >
-                {loading ? <LoaderCircle size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                {loading ? (
+                  <LoaderCircle
+                    size={15}
+                    className="animate-spin"
+                  />
+                ) : (
+                  <CheckCircle2 size={15} />
+                )}
+
                 Confirm selection: {current?.name}
               </button>
-              {!token && <p className="text-2xs text-status-amber">Sign in before activating a project.</p>}
+
+              {!token && (
+                <p className="text-2xs text-status-amber">
+                  Sign in before activating a project.
+                </p>
+              )}
             </div>
           </>
         )}

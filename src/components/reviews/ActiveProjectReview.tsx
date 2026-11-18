@@ -12,6 +12,7 @@ import {
   getProject,
   type ActivatedProject,
   type ProjectReview,
+  type ProjectFinding,
 } from "../../Api/ProjectActivation";
 
 import { useAuthStore } from "../../store/useAuthStore";
@@ -33,6 +34,7 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [severityFilter, setSeverityFilter] = useState<"all" | ProjectFinding["severity"]>("all");
 
   useEffect(() => {
     setProject(null);
@@ -124,6 +126,15 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
     );
   }
 
+  const findings = review?.findings ?? [];
+
+  const visibleFindings =
+    severityFilter === "all"
+      ? findings
+      : findings.filter(
+          (finding) => finding.severity === severityFilter,
+        );
+
   return (
     <section className="min-w-0 overflow-hidden rounded-panel border border-app-line bg-app-panel p-4 shadow-panel sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -190,6 +201,101 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
         </p>
       )}
 
+      {review && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-app-line bg-app-panel2 px-3 py-2 text-xs">
+          <span className="text-app-text">
+            {findings.length} evidence-quoted AI suggestion
+            {findings.length === 1 ? "" : "s"}
+          </span>
+
+          <span className="text-app-muted">
+            Unverified — no fixes applied
+          </span>
+        </div>
+      )}
+
+      {detailed && findings.length > 0 && (
+        <div
+          className="mt-4 space-y-3"
+          aria-label="Structured review findings"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-app-text">
+              Suggested findings
+            </h3>
+
+            <label className="text-2xs text-app-muted">
+              Severity
+
+              <select
+                value={severityFilter}
+                onChange={(event) =>
+                  setSeverityFilter(
+                    event.target.value as typeof severityFilter,
+                  )
+                }
+                className="ml-2 rounded-md border border-app-line bg-app-bg px-2 py-1 text-xs text-app-text"
+              >
+                <option value="all">All</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+                <option value="info">Info</option>
+              </select>
+            </label>
+          </div>
+
+          {visibleFindings.map((finding, index) => (
+            <article
+              key={`${finding.path}:${index}`}
+              className="min-w-0 rounded-lg border border-app-line bg-app-bg p-3 sm:p-4"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md border border-status-amber-line bg-status-amber-bg px-2 py-1 text-micro font-semibold text-status-amber">
+                  {finding.severity.toUpperCase()} · suggested
+                </span>
+
+                <span className="text-micro text-app-muted">
+                  Unverified
+                </span>
+              </div>
+
+              <h4 className="mt-2 wrap-break-words text-sm font-semibold text-app-text">
+                {finding.title}
+              </h4>
+
+              <p className="mt-1 wrap-break-words font-mono text-2xs text-app-accent">
+                {finding.path}
+              </p>
+
+              <p className="mt-3 whitespace-pre-wrap wrap-break-word text-xs leading-relaxed text-app-text">
+                {finding.explanation}
+              </p>
+
+              <p className="mt-3 text-2xs font-semibold text-app-muted">
+                Quoted source evidence
+              </p>
+
+              <pre className="mt-1 overflow-x-auto whitespace-pre-wrap wrap-break-word rounded-md border border-app-line bg-app-panel2 p-2 font-mono text-2xs text-app-text">
+                {finding.evidence}
+              </pre>
+
+              <p className="mt-2 text-2xs text-app-muted">
+                Verify this suggestion against the source before
+                creating a task or patch.
+              </p>
+            </article>
+          ))}
+
+          {visibleFindings.length === 0 && (
+            <p className="text-xs text-app-muted">
+              No suggestions match this severity.
+            </p>
+          )}
+        </div>
+      )}
+
       {review?.result_text && (
         <div className="mt-4 min-w-0">
           <div className="mb-2 flex items-start gap-2 text-2xs text-status-amber">
@@ -203,7 +309,17 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
             against source before taking action.
           </div>
 
-          {detailed ? (
+          {detailed && findings.length > 0 ? (
+            <details className="rounded-lg border border-app-line bg-app-bg">
+              <summary className="cursor-pointer px-4 py-3 text-xs font-semibold text-app-text">
+                View full AI review report
+              </summary>
+
+              <pre className="max-h-160 overflow-auto whitespace-pre-wrap wrap-break-word border-t border-app-line p-4 font-mono text-xs leading-relaxed text-app-text">
+                {review.result_text}
+              </pre>
+            </details>
+          ) : detailed ? (
             <pre className="max-h-160 overflow-auto whitespace-pre-wrap wrap-break-word rounded-lg border border-app-line bg-app-bg p-4 font-mono text-xs leading-relaxed text-app-text">
               {review.result_text}
             </pre>
