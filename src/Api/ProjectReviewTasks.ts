@@ -1,4 +1,5 @@
 import { apiClient } from "./Auth";
+import { requestWithTokenRefresh } from "./AuthenticatedRequest";
 
 export type ProjectReviewTask = {
   id: string;
@@ -28,44 +29,47 @@ const headers = (token: string) => ({
 export const getProjectReviewTasks = (
   token: string,
   projectId: string,
+  offset = 0,
+  limit = 100
 ) =>
-  apiClient
-    .get(`projects/${projectId}/tasks`, {
-      headers: headers(token),
-      searchParams: {
-        limit: 100,
-        offset: 0,
-      },
-    })
-    .json<ProjectReviewTaskList>();
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .get(`projects/${projectId}/tasks`, {
+        headers: headers(accessToken),
+        searchParams: { limit, offset },
+      })
+      .json<ProjectReviewTaskList>()
+  );
 
 export const createProjectReviewTask = (
   token: string,
   projectId: string,
   reviewId: string,
-  findingIndex: number,
+  findingIndex: number
 ) =>
-  apiClient
-    .post(`projects/${projectId}/tasks`, {
-      headers: headers(token),
-      json: {
-        review_id: reviewId,
-        finding_index: findingIndex,
-      },
-    })
-    .json<ProjectReviewTask>();
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .post(`projects/${projectId}/tasks`, {
+        headers: headers(accessToken),
+        json: {
+          review_id: reviewId,
+          finding_index: findingIndex,
+        },
+      })
+      .json<ProjectReviewTask>()
+  );
 
 export const decideProjectReviewTask = (
   token: string,
   projectId: string,
   taskId: string,
-  decision: "approved" | "dismissed",
+  decision: "approved" | "dismissed"
 ) =>
-  apiClient
-    .patch(`projects/${projectId}/tasks/${taskId}`, {
-      headers: headers(token),
-      json: {
-        status: decision,
-      },
-    })
-    .json<ProjectReviewTask>();
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .patch(`projects/${projectId}/tasks/${taskId}`, {
+        headers: headers(accessToken),
+        json: { status: decision },
+      })
+      .json<ProjectReviewTask>()
+  );

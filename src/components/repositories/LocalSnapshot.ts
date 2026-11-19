@@ -22,6 +22,19 @@ const sourceExtensions = new Set([
 
 const sensitiveFile = (name: string) => {
   const lower = name.toLowerCase();
+
+    const blockedNames = new Set([
+      "pgadmin-servers.json",
+      "docker-compose.override.yml",
+      "service-account.json",
+      "secrets.json",
+      "credentials.json",
+    ]);
+
+    if (blockedNames.has(lower)) {
+      return true;
+    }
+
   return lower.startsWith(".") || lower.includes("secret") ||
     lower.includes("credential") || lower.includes("private_key") ||
     lower.startsWith("id_rsa") || lower.startsWith("id_ed25519") ||
@@ -35,7 +48,8 @@ const sensitiveFile = (name: string) => {
 };
 
 // Mirrors the backend's basic credential-pattern guard. Backend validation is authoritative.
-const suspectedCredential = /-----BEGIN [A-Z ]*PRIVATE KEY-----|aws_secret_access_key\s*[:=]|authorization\s*[:=]\s*bearer\s+\S+|(?:api[_-]?key|password|access[_-]?token)\s*[:=]\s*['"]?[A-Za-z0-9_+\-/]{18,}/i;
+const suspectedCredential =
+  /(?:^|\r?\n)[ \t]*-----BEGIN [A-Z ]*PRIVATE KEY-----|authorization\s*[:=]\s*bearer\s+[A-Za-z0-9_+./=-]{18,}|(?:aws_secret_access_key|api[_-]?key|password|access[_-]?token)\s*[:=]\s*(['"])[A-Za-z0-9_+\-/=]{18,}\1|(?:aws_secret_access_key|api[_-]?key|password|access[_-]?token)\s*[:=]\s*(?:sk-[A-Za-z0-9_-]{18,}|ghp_[A-Za-z0-9]{18,}|AKIA[A-Z0-9]{16})(?![A-Za-z0-9_])/im;
 
 type BuildResult = {
   files: SnapshotFile[];
@@ -95,7 +109,10 @@ export const collectLocalSnapshot = async (
         throw new Error("A source file is not valid UTF-8 text.");
       }
       if (content.includes("\0") || suspectedCredential.test(content)) {
-        throw new Error("A source file may contain credentials or binary data. Review the folder before uploading.");
+        throw new Error(
+          `Cannot include ${[...parents, handle.name].join("/")}: ` +
+          "possible credentials or binary data. Review this file before uploading.",
+        );
       }
       const bytes = encoder.encode(content).byteLength;
       totalBytes += bytes;

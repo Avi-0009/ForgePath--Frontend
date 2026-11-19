@@ -498,54 +498,33 @@ const LocalFolderPicker = () => {
     if (!picker || !window.isSecureContext) {
       setError(
         "This browser cannot open local folders here. " +
-        "Use a supported browser on localhost or HTTPS.",
+        "Use a supported browser on localhost or HTTPS."
       );
       return;
     }
 
     try {
-      // Call the picker directly from the click handler.
       const handle = await picker.call(window, {
         id: "forgepath-local-repository",
         mode: "read",
       });
-
-      try {
-        const sourceDirectory = await handle.getDirectoryHandle("src");
-
-        console.info("ForgePath source directory:", {
-          selectedFolder: handle.name,
-          sourceFound: true,
-          sourceName: sourceDirectory.name,
-        });
-      } catch (error) {
-        console.error(
-          "Selected folder does not expose src/:",
-          error,
-        );
-      }
 
       setLoading(true);
       setError("");
       setSelectedFile("");
       setPreview("");
       setPendingProjectId(null);
-
-      const previewSnapshot = await collectLocalSnapshot(handle);
-
-        console.info("ForgePath full snapshot check:", {
-          eligibleFiles: previewSnapshot.files.length,
-          directories: previewSnapshot.scannedDirectories,
-          includesSourceDirectory: previewSnapshot.files.some(
-            (file) => file.relative_path.startsWith("src/"),
-          ),
-        });
+      setPreparedSnapshot(null);
 
       const result = await listDirectory(handle);
 
       setLocations([
-        { name: handle.name, handle },
+        {
+          name: handle.name,
+          handle,
+        },
       ]);
+
       setEntries(result.entries);
       setTruncated(result.truncated);
     } catch (cause) {
@@ -559,7 +538,7 @@ const LocalFolderPicker = () => {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Unable to open the selected folder.",
+          : "Unable to open the selected folder."
       );
     } finally {
       setLoading(false);

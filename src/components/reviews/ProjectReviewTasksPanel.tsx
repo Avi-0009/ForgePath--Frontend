@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -18,6 +18,8 @@ import { useActiveProjectId } from "../../store/useActiveProjectId";
 import { useAuthStore } from "../../store/useAuthStore";
 
 
+const TASK_PAGE_SIZE = 25;
+
 const ProjectReviewTasksPanel = () => {
   const token = useAuthStore((state) => state.token);
   const userId = useAuthStore((state) => state.user?.id);
@@ -27,6 +29,8 @@ const ProjectReviewTasksPanel = () => {
     userId: string;
     projectId: string;
     items: ProjectReviewTask[];
+    nextOffset: number;
+    hasMore: boolean;
   } | null>(null);
 
   const tasks =
@@ -37,6 +41,8 @@ const ProjectReviewTasksPanel = () => {
       : [];
 
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const listGeneration = useRef(0);
 
   const [busyTaskId, setBusyTaskId] =
     useState<string | null>(null);
@@ -60,21 +66,36 @@ const ProjectReviewTasksPanel = () => {
     }
 
     let cancelled = false;
+    const generation = ++listGeneration.current;
 
-    void getProjectReviewTasks(token, projectId)
+    void getProjectReviewTasks(
+      token,
+      projectId,
+      0,
+      TASK_PAGE_SIZE
+    )
       .then((response) => {
-        if (!cancelled) {
+        if (
+          !cancelled &&
+          generation === listGeneration.current
+        ) {
           setTaskData({
             userId,
             projectId,
             items: response.items,
+            nextOffset: response.items.length,
+            hasMore:
+              response.items.length === TASK_PAGE_SIZE,
           });
 
           setErrorData(null);
         }
       })
       .catch(() => {
-        if (!cancelled) {
+        if (
+          !cancelled &&
+          generation === listGeneration.current
+        ) {
           setErrorData({
             projectId,
             message: "Could not load project review tasks.",
@@ -89,8 +110,83 @@ const ProjectReviewTasksPanel = () => {
 
     return () => {
       cancelled = true;
+      listGeneration.current += 1;
     };
   }, [token, userId, projectId, reload]);
+
+  const loadMore = async () => {
+    if (
+      !token ||
+      !userId ||
+      !projectId ||
+      loading ||
+      loadingMore ||
+      !taskData?.hasMore ||
+      taskData.userId !== userId ||
+      taskData.projectId !== projectId
+    ) {
+      return;
+    }
+
+    const generation = listGeneration.current;
+    const offset = taskData.nextOffset;
+
+    setLoadingMore(true);
+    setErrorData(null);
+
+    try {
+      const response = await getProjectReviewTasks(
+        token,
+        projectId,
+        offset,
+        TASK_PAGE_SIZE
+      );
+
+      if (generation !== listGeneration.current) {
+        return;
+      }
+
+      setTaskData((previous) => {
+        if (
+          previous?.userId !== userId ||
+          previous.projectId !== projectId ||
+          previous.nextOffset !== offset
+        ) {
+          return previous;
+        }
+
+        const existingIds = new Set(
+          previous.items.map((item) => item.id)
+        );
+
+        return {
+          ...previous,
+
+          items: [
+            ...previous.items,
+            ...response.items.filter(
+              (item) => !existingIds.has(item.id)
+            ),
+          ],
+
+          nextOffset:
+            offset + response.items.length,
+
+          hasMore:
+            response.items.length === TASK_PAGE_SIZE,
+        };
+      });
+    } catch {
+      if (generation === listGeneration.current) {
+        setErrorData({
+          projectId,
+          message: "Could not load more tasks.",
+        });
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
 
   const decide = async (
@@ -103,6 +199,7 @@ const ProjectReviewTasksPanel = () => {
 
     setBusyTaskId(task.id);
     setErrorData(null);
+    listGeneration.current += 1;
 
     try {
       const updated = await decideProjectReviewTask(
@@ -299,6 +396,19 @@ const ProjectReviewTasksPanel = () => {
             </article>
           ))}
         </div>
+      )}
+
+      {taskData?.hasMore && tasks.length > 0 && (
+        <button
+          type="button"
+          disabled={loading || loadingMore}
+          onClick={() => void loadMore()}
+          className="btn mt-4 text-xs disabled:opacity-50"
+        >
+          {loadingMore
+            ? "Loading more..."
+            : "Load more tasks"}
+        </button>
       )}
 
     </section>
