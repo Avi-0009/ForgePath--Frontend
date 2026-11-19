@@ -8,12 +8,17 @@ import AppHeader from "../components/layout/AppHeader";
 export default function AppLayout() {
   const location = useLocation();
 
-  const [isSidebarOpen, setIsSidebarOpen] =
-    useState(false);
+  const [sidebarOpenPath, setSidebarOpenPath] =
+    useState<string | null>(null);
 
-  useEffect(() => {
-    setIsSidebarOpen(false);
-  }, [location.pathname]);
+  const isSidebarOpen =
+    sidebarOpenPath === location.pathname;
+
+  const setIsSidebarOpen = (open: boolean) => {
+    setSidebarOpenPath(
+      open ? location.pathname : null
+    );
+  };
 
   useEffect(() => {
     if (!isSidebarOpen) return;
@@ -23,7 +28,7 @@ export default function AppLayout() {
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsSidebarOpen(false);
+        setSidebarOpenPath(null);
       }
     };
 
@@ -53,6 +58,7 @@ export default function AppLayout() {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <AppHeader
+          key={location.pathname}
           onOpenMenu={() => setIsSidebarOpen(true)}
         />
 

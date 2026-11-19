@@ -34,7 +34,7 @@ const ForgotPasswordPage = () => {
     try {
       await RequestPasswordReset(email);
       setStep("reset");
-    } catch (err: any) {
+    } catch {
       setError("Failed to send OTP. Please verify the email address.");
     } finally {
       setIsLoading(false);
@@ -55,7 +55,7 @@ const ForgotPasswordPage = () => {
     try {
       await ResetPassword(email, otp, newPassword);
       navigate("/auth", { replace: true });
-    } catch (err: any) {
+    } catch {
       setError("Invalid OTP or server error. Please try again.");
     } finally {
       setIsLoading(false);

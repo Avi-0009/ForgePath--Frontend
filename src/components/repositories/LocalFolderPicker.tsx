@@ -214,15 +214,59 @@ const LocalFolderPicker = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [truncated, setTruncated] = useState(false);
-  const [activeProject, setActiveProject] = useState<ActivatedProject | null>(null);
+  const [loadedProject, setActiveProject] =
+    useState<ActivatedProject | null>(null);
+
+  const activeProject =
+    token && loadedProject?.id === activeProjectId
+      ? loadedProject
+      : null;
+
   const [receipt, setReceipt] = useState<SnapshotReceipt | null>(null);
-  const [review, setReview] = useState<ProjectReview | null>(null);
+  const [loadedReview, setReview] =
+    useState<ProjectReview | null>(null);
+
+  const review =
+    token &&
+    activeProject &&
+    loadedReview?.project_id === activeProject.id
+      ? loadedReview
+      : null;
+
   const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
   const [activationMessage, setActivationMessage] = useState("");
 
-  const [ownedProjects, setOwnedProjects] = useState<ActivatedProject[]>([]);
+  const [ownedProjectsData, setOwnedProjectsData] =
+    useState<{
+      userId: string;
+      items: ActivatedProject[];
+    } | null>(null);
 
-  const [projectTarget, setProjectTarget] = useState("");
+  const ownedProjects =
+    ownedProjectsData &&
+    userId &&
+    ownedProjectsData.userId === userId
+      ? ownedProjectsData.items
+      : [];
+
+  const [targetData, setTargetData] =
+    useState<{
+      userId: string;
+      value: string;
+    } | null>(null);
+
+  const projectTarget =
+    targetData &&
+    userId &&
+    targetData.userId === userId
+      ? targetData.value
+      : "";
+
+  const setProjectTarget = (value: string) => {
+    setTargetData(
+      userId ? { userId, value } : null
+    );
+  };
 
   const [preparedSnapshot, setPreparedSnapshot] = useState<{
     handle: FileSystemDirectoryHandle;
@@ -236,9 +280,7 @@ const LocalFolderPicker = () => {
   const current = locations.at(-1);
 
   useEffect(() => {
-    if (!token) {
-      setOwnedProjects([]);
-      setProjectTarget("");
+    if (!token || !userId) {
       return;
     }
 
@@ -247,32 +289,39 @@ const LocalFolderPicker = () => {
     void listProjects(token)
       .then(({ items }) => {
         if (mounted) {
-          setOwnedProjects(
-            items.filter((project) => project.status !== "archived"),
-          );
+          setOwnedProjectsData({
+            userId,
+            items: items.filter(
+              (project) => project.status !== "archived"
+            ),
+          });
         }
       })
       .catch(() => {
-        if (mounted) setOwnedProjects([]);
+        if (mounted) {
+          setOwnedProjectsData({
+            userId,
+            items: [],
+          });
+        }
       });
 
     return () => {
       mounted = false;
     };
-  }, [token]);
+  }, [token, userId]);
 
   useEffect(() => {
     if (!token || !userId) {
-      setActiveProject(null);
       return;
     }
     const savedId = activeProjectId;
     if (!savedId) {
-      setActiveProject(null);
-      setReview(null);
       return;
     }
+
     let mounted = true;
+
     void getProject(token, savedId).then((project) => {
       if (mounted) setActiveProject(project);
     }).catch(() => {
@@ -286,7 +335,6 @@ const LocalFolderPicker = () => {
 
   useEffect(() => {
     if (!token || !activeProject?.id) {
-      setReview(null);
       return;
     }
     let mounted = true;
@@ -386,10 +434,19 @@ const LocalFolderPicker = () => {
       setReceipt(uploaded);
       setActiveProject(project);
 
-      setOwnedProjects((previous) => [
-        project,
-        ...previous.filter((item) => item.id !== project.id),
-      ]);
+      setOwnedProjectsData((previous) => ({
+        userId,
+        items: [
+          project,
+          ...(
+            previous?.userId === userId
+              ? previous.items
+              : []
+          ).filter(
+            (item) => item.id !== project.id
+          ),
+        ],
+      }));
 
       setProjectTarget(project.id);
       setPreparedSnapshot(null);

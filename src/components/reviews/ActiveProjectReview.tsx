@@ -30,26 +30,65 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
   const token = useAuthStore((state) => state.token);
   const projectId = useActiveProjectId();
 
-  const [project, setProject] =
+  const [loadedProject, setProject] =
     useState<ActivatedProject | null>(null);
 
-  const [review, setReview] =
+  const project =
+    token && loadedProject?.id === projectId
+      ? loadedProject
+      : null;
+
+  const [loadedReview, setReview] =
     useState<ProjectReview | null>(null);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [severityFilter, setSeverityFilter] = useState<"all" | ProjectFinding["severity"]>("all");
+  const review =
+    token && loadedReview?.project_id === projectId
+      ? loadedReview
+      : null;
+
+  const [loading, setLoading] = useState(true);
+
+  const [errorData, setErrorData] = useState<{
+    projectId: string;
+    message: string;
+  } | null>(null);
+
+  const error =
+    errorData?.projectId === projectId
+      ? errorData.message
+      : "";
+
+  const [severityFilter, setSeverityFilter] =
+    useState<"all" | ProjectFinding["severity"]>("all");
 
   const [creatingIndex, setCreatingIndex] =
     useState<number | null>(null);
 
-  const [createdIndices, setCreatedIndices] =
-    useState<Set<number>>(() => new Set());
+  const [createdTaskData, setCreatedTaskData] = useState<{
+    reviewId: string;
+    indices: Set<number>;
+  } | null>(null);
 
-  const [taskError, setTaskError] = useState("");
+  const createdIndices =
+    createdTaskData &&
+    review &&
+    createdTaskData.reviewId === review.id
+      ? createdTaskData.indices
+      : new Set<number>();
+
+  const [taskErrorData, setTaskErrorData] = useState<{
+    reviewId: string;
+    message: string;
+  } | null>(null);
+
+  const taskError =
+    taskErrorData &&
+    review &&
+    taskErrorData.reviewId === review.id
+      ? taskErrorData.message
+      : "";
 
   useEffect(() => {
-    setProject(null);
 
     if (!token || !projectId) return;
 
@@ -69,13 +108,10 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
   }, [token, projectId]);
 
   useEffect(() => {
-    setReview(null);
-    setError("");
 
     if (!token || !projectId) return;
 
     let cancelled = false;
-    setLoading(true);
 
     const refresh = async () => {
       try {
@@ -86,18 +122,20 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
 
         if (!cancelled) {
           setReview(result);
-          setError("");
+          setErrorData(null);
         }
       } catch (cause) {
         if (!cancelled) {
           setReview(null);
 
-          setError(
-            cause instanceof HTTPError &&
+          setErrorData({
+            projectId,
+            message:
+              cause instanceof HTTPError &&
               cause.response.status === 404
-              ? "No initial review has been started for this project."
-              : "Could not load this project's review.",
-          );
+                ? "No initial review has been started for this project."
+                : "Could not load this project's review.",
+          });
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -118,9 +156,6 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
   }, [token, projectId]);
 
   useEffect(() => {
-    setCreatedIndices(new Set());
-    setTaskError("");
-
     if (!detailed || !token || !projectId || !review?.id) {
       return;
     }
@@ -130,22 +165,29 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
     void getProjectReviewTasks(token, projectId)
       .then((response) => {
         if (!cancelled) {
-          setCreatedIndices(
-            new Set(
-              response.items
-                .filter(
-                  (task) => task.review_id === review.id,
-                )
+          setCreatedTaskData((previous) => ({
+            reviewId: review.id,
+            indices: new Set([
+              ...response.items
+                .filter((task) => task.review_id === review.id)
                 .map((task) => task.finding_index),
-            ),
-          );
+
+              ...(previous?.reviewId === review.id
+                ? previous.indices
+                : []),
+            ]),
+          }));
+
+          setTaskErrorData(null);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setTaskError(
-            "Could not check your existing review tasks.",
-          );
+          setTaskErrorData({
+            reviewId: review.id,
+            message:
+              "Could not check your existing review tasks.",
+          });
         }
       });
 
@@ -166,7 +208,7 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
     }
 
     setCreatingIndex(index);
-    setTaskError("");
+    setTaskErrorData(null);
 
     try {
       await createProjectReviewTask(
@@ -176,13 +218,20 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
         index,
       );
 
-      setCreatedIndices(
-        (previous) => new Set([...previous, index]),
-      );
+      setCreatedTaskData((previous) => ({
+        reviewId: review.id,
+        indices: new Set([
+          ...(previous?.reviewId === review.id
+            ? previous.indices
+            : []),
+          index,
+        ]),
+      }));
     } catch {
-      setTaskError(
-        "Could not save that task. Please try again.",
-      );
+      setTaskErrorData({
+        reviewId: review.id,
+        message: "Could not save that task. Please try again.",
+      });
     } finally {
       setCreatingIndex(null);
     }

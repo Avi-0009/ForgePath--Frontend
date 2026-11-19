@@ -20,43 +20,65 @@ import { useAuthStore } from "../../store/useAuthStore";
 
 const ProjectReviewTasksPanel = () => {
   const token = useAuthStore((state) => state.token);
+  const userId = useAuthStore((state) => state.user?.id);
   const projectId = useActiveProjectId();
 
-  const [tasks, setTasks] =
-    useState<ProjectReviewTask[]>([]);
+  const [taskData, setTaskData] = useState<{
+    userId: string;
+    projectId: string;
+    items: ProjectReviewTask[];
+  } | null>(null);
 
-  const [loading, setLoading] = useState(false);
+  const tasks =
+    token &&
+    taskData?.userId === userId &&
+    taskData?.projectId === projectId
+      ? taskData.items
+      : [];
+
+  const [loading, setLoading] = useState(true);
 
   const [busyTaskId, setBusyTaskId] =
     useState<string | null>(null);
 
-  const [error, setError] = useState("");
+  const [errorData, setErrorData] = useState<{
+    projectId: string;
+    message: string;
+  } | null>(null);
+
+  const error =
+    errorData?.projectId === projectId
+      ? errorData.message
+      : "";
+
   const [reload, setReload] = useState(0);
 
 
   useEffect(() => {
-    setTasks([]);
-    setError("");
-
-    if (!token || !projectId) {
+    if (!token || !userId || !projectId) {
       return;
     }
 
     let cancelled = false;
 
-    setLoading(true);
-
     void getProjectReviewTasks(token, projectId)
       .then((response) => {
         if (!cancelled) {
-          setTasks(response.items);
+          setTaskData({
+            userId,
+            projectId,
+            items: response.items,
+          });
+
+          setErrorData(null);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setError(
-            "Could not load project review tasks.",
-          );
+          setErrorData({
+            projectId,
+            message: "Could not load project review tasks.",
+          });
         }
       })
       .finally(() => {
@@ -68,7 +90,7 @@ const ProjectReviewTasksPanel = () => {
     return () => {
       cancelled = true;
     };
-  }, [token, projectId, reload]);
+  }, [token, userId, projectId, reload]);
 
 
   const decide = async (
@@ -80,7 +102,7 @@ const ProjectReviewTasksPanel = () => {
     }
 
     setBusyTaskId(task.id);
-    setError("");
+    setErrorData(null);
 
     try {
       const updated = await decideProjectReviewTask(
@@ -90,15 +112,21 @@ const ProjectReviewTasksPanel = () => {
         status,
       );
 
-      setTasks((items) =>
-        items.map((item) =>
-          item.id === updated.id ? updated : item,
-        ),
+      setTaskData((previous) =>
+        previous?.projectId === projectId
+          ? {
+              ...previous,
+              items: previous.items.map((item) =>
+                item.id === updated.id ? updated : item
+              ),
+            }
+          : previous
       );
     } catch {
-      setError(
-        "Could not update this task. Please try again.",
-      );
+      setErrorData({
+        projectId,
+        message: "Could not update this task. Please try again.",
+      });
     } finally {
       setBusyTaskId(null);
     }
@@ -138,9 +166,11 @@ const ProjectReviewTasksPanel = () => {
         <button
           type="button"
           disabled={loading}
-          onClick={() =>
-            setReload((previous) => previous + 1)
-          }
+          onClick={() => {
+            setErrorData(null);
+            setLoading(true);
+            setReload((previous) => previous + 1);
+          }}
           className="btn text-xs disabled:opacity-50"
         >
           Refresh

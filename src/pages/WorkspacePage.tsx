@@ -62,9 +62,10 @@ const WorkspacePage = () => {
   useEffect(() => {
     let cancelled = false;
 
-    // Skip fetch if we already have data and this isn't an explicit refresh
-    if (treeData && reloadKey === 0) {
-      setIsLoading(false);
+    if (
+      reloadKey === 0 &&
+      useWorkspaceStore.getState().treeData
+    ) {
       return;
     }
 
@@ -96,7 +97,7 @@ const WorkspacePage = () => {
     void fetchTree();
     return () => { cancelled = true; };
     
-  }, [token, reloadKey]); 
+  }, [token, reloadKey, setTreeData]); 
 
   // FILE SELECTION
 

@@ -139,11 +139,11 @@ function NavigationGroup({
                 {item.label}
               </span>
 
-              {item.count !== undefined && (
+              {/* {item.count !== undefined && (
                 <span className="shrink-0 rounded-md bg-app-panel3 px-2 py-0.5 text-micro font-semibold text-app-muted">
                   {item.count}
                 </span>
-              )}
+              )} */}
             </NavLink>
           );
         })}

@@ -161,10 +161,6 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
   const help = helpContent[location.pathname];
 
   useEffect(() => {
-    setOpenPanel(null);
-  }, [location.pathname]);
-
-  useEffect(() => {
     if (!openPanel) return;
 
     const onOutsideClick = (event: PointerEvent) => {

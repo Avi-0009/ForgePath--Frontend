@@ -104,7 +104,7 @@ const SettingsPage = () => {
   useEffect(() => {
     if (!token) return;
     let active = true;
-    getAIConfiguration(token).then((config : any) => {
+    getAIConfiguration(token).then((config) => {
       if (!active) return;
       if (config.provider && config.model_identifier) {
         setProvider(config.provider);

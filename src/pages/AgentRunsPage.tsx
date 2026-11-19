@@ -95,11 +95,18 @@ const panelClass =
 export default function AgentRunsPage() {
   const token = useAuthStore((state) => state.token);
   const activeProjectId = useActiveProjectId();
-  const [projectReview, setProjectReview] = useState<ProjectReview | null>(null);
+  const [latestReview, setProjectReview] =
+    useState<ProjectReview | null>(null);
+
+  const projectReview =
+    token &&
+    activeProjectId &&
+    latestReview?.project_id === activeProjectId
+      ? latestReview
+      : null;
 
   useEffect(() => {
     if (!token || !activeProjectId) {
-      setProjectReview(null);
       return;
     }
     let cancelled = false;

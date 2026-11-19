@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { CheckCircle2, AlertCircle, User, Mail, Loader2, Save, AtSign, Key, LogOut } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { RequestEmailVerification, VerifyEmailOtp } from "../Api/Auth";
@@ -9,28 +9,20 @@ const ProfilePage = () => {
   const { user, token, updateUser, logout } = useAuthStore();
   const navigate = useNavigate();
   
-  const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(
+    user?.name ?? ""
+  );
+
+  const [username, setUsername] = useState(
+    user?.username ?? ""
+  );
+
+  const email = user?.email ?? "";
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [showOtpVerify, setShowOtpVerify] = useState(false);
   const [otp, setOtp] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      setName(user.name || "");
-      setUsername(user.username || "");
-      setEmail(user.email || "");
-    } else {
-      setName("");
-      setUsername("");
-      setEmail("");
-      setShowOtpVerify(false);
-      setOtp("");
-    }
-  }, [user]);
 
   const getInitials = (name: string) => {
     if (!name) return "FP";
@@ -48,7 +40,7 @@ const ProfilePage = () => {
     setIsSubmitting(true);
     try {
       toast.success("Profile updated successfully");
-    } catch (error) {
+    } catch {
       toast.error("Failed to update profile. Username might be taken.");
     } finally {
       setIsSubmitting(false);
@@ -62,7 +54,7 @@ const ProfilePage = () => {
       await RequestEmailVerification(token);
       setShowOtpVerify(true);
       toast.success(`Verification code sent to ${email}`);
-    } catch (error) {
+    } catch {
       toast.error("Failed to request verification code.");
     }
   };
@@ -78,8 +70,8 @@ const ProfilePage = () => {
       toast.success("Email verified successfully!");
       setShowOtpVerify(false);
       setOtp("");
-      updateUser({ is_email_verified: true } as any);
-    } catch (error) {
+      updateUser({ is_email_verified: true });
+    } catch {
       toast.error("Invalid verification code or code expired.");
     } finally {
       setIsVerifying(false);
@@ -92,7 +84,8 @@ const ProfilePage = () => {
     navigate("/auth");
   };
 
-  const isEmailVerified = (user as any)?.is_email_verified === true;
+  const isEmailVerified =
+    user?.is_email_verified === true;
   const hasChanges = name !== user?.name || username !== user?.username;
 
   return (
