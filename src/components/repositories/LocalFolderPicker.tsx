@@ -23,6 +23,13 @@ import {
   type SnapshotReceipt,
 } from "../../Api/ProjectActivation";
 import { collectLocalSnapshot } from "./LocalSnapshot";
+import {
+  folderPermission,
+  forgetFolder,
+  listSavedFolders,
+  saveFolder,
+  type SavedFolderAccess,
+} from "./SavedFolderAccess";
 import { setActiveProjectId, useActiveProjectId } from "../../store/useActiveProjectId";
 
 type BrowserWithPicker = Window & {
@@ -276,6 +283,40 @@ const LocalFolderPicker = () => {
     directories: number;
   } | null>(null);
 
+  const [savedData, setSavedData] = useState<{
+    userId: string;
+    folders: SavedFolderAccess[];
+    permissions: Record<string, PermissionState>;
+  } | null>(null);
+
+  const savedFolders = userId && savedData?.userId === userId
+    ? savedData.folders
+    : [];
+
+  useEffect(() => {
+    if (!userId || !token) return;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const folders = await listSavedFolders(userId);
+        const permissions: Record<string, PermissionState> = {};
+        await Promise.all(folders.map(async (folder) => {
+          try {
+            permissions[folder.id] = await folderPermission(folder.handle);
+          } catch {
+            permissions[folder.id] = "denied";
+          }
+        }));
+        if (!cancelled) setSavedData({ userId, folders, permissions });
+      } catch {
+        if (!cancelled) setError("Unable to load previously saved folder permissions.");
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [token, userId]);
+
   const root = locations[0];
   const current = locations.at(-1);
 
@@ -452,6 +493,30 @@ const LocalFolderPicker = () => {
       setPreparedSnapshot(null);
       setPendingProjectId(null);
 
+      try {
+        await saveFolder(userId, project.id, current.handle);
+        setSavedData((previous) => ({
+          userId,
+          folders: [
+            {
+              id: `${userId}:${project.id}`,
+              userId,
+              projectId: project.id,
+              folderName: current.name,
+              handle: current.handle,
+            },
+            ...(previous?.userId === userId ? previous.folders : [])
+              .filter((item) => item.projectId !== project.id),
+          ],
+          permissions: {
+            ...(previous?.userId === userId ? previous.permissions : {}),
+            [`${userId}:${project.id}`]: "granted",
+          },
+        }));
+      } catch {
+        setError("Project saved, but this browser could not remember the folder handle.");
+      }
+
       setActivationMessage(
         `${snapshot.files.length} source files saved ` +
         `(${snapshot.skippedFiles} skipped). ` +
@@ -491,6 +556,58 @@ const LocalFolderPicker = () => {
     setActivationMessage("Active-project preference cleared. The saved project was not deleted.");
   };
 
+  const reopenSavedFolder = async (folder: SavedFolderAccess) => {
+    if (loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      // Request access only in response to the user's click.
+      const permission = await folderPermission(folder.handle, true);
+      if (permission !== "granted") {
+        throw new Error("Folder access was not granted. Select it again with Open local folder.");
+      }
+      const result = await listDirectory(folder.handle);
+      setLocations([{ name: folder.folderName, handle: folder.handle }]);
+      setEntries(result.entries);
+      setTruncated(result.truncated);
+      setSelectedFile("");
+      setPreview("");
+      setPreparedSnapshot(null);
+      setPendingProjectId(null);
+      setProjectTarget(folder.projectId);
+      setSavedData((previous) => {
+        if (!previous || previous.userId !== userId) return previous;
+        return {
+          ...previous,
+          permissions: { ...previous.permissions, [folder.id]: "granted" },
+        };
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Saved folder is unavailable.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const disconnectSavedFolder = async (folder: SavedFolderAccess) => {
+    if (!userId || loading) return;
+    try {
+      await forgetFolder(userId, folder.projectId);
+      setSavedData((previous) => {
+        if (!previous || previous.userId !== userId) return previous;
+        return {
+          ...previous,
+          folders: previous.folders.filter((item) => item.id !== folder.id),
+        };
+      });
+      if (locations.some((location) => location.handle === folder.handle)) {
+        clearSelection();
+      }
+    } catch {
+      setError("Could not forget the saved folder handle.");
+    }
+  };
+
   const openFolder = async () => {
     const picker = (window as BrowserWithPicker)
       .showDirectoryPicker;
@@ -498,12 +615,13 @@ const LocalFolderPicker = () => {
     if (!picker || !window.isSecureContext) {
       setError(
         "This browser cannot open local folders here. " +
-        "Use a supported browser on localhost or HTTPS."
+        "Use a supported browser on localhost or HTTPS.",
       );
       return;
     }
 
     try {
+      // Call the picker directly from the click handler.
       const handle = await picker.call(window, {
         id: "forgepath-local-repository",
         mode: "read",
@@ -519,12 +637,8 @@ const LocalFolderPicker = () => {
       const result = await listDirectory(handle);
 
       setLocations([
-        {
-          name: handle.name,
-          handle,
-        },
+        { name: handle.name, handle },
       ]);
-
       setEntries(result.entries);
       setTruncated(result.truncated);
     } catch (cause) {
@@ -538,7 +652,7 @@ const LocalFolderPicker = () => {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Unable to open the selected folder."
+          : "Unable to open the selected folder.",
       );
     } finally {
       setLoading(false);
@@ -648,6 +762,7 @@ const LocalFolderPicker = () => {
     setError("");
     setTruncated(false);
     setPendingProjectId(null);
+    setPreparedSnapshot(null);
   };
 
   return (
@@ -694,6 +809,36 @@ const LocalFolderPicker = () => {
       </div>
 
       <div className="p-4 sm:p-5">
+        {savedFolders.length > 0 && (
+          <section className="mb-4 rounded-lg border border-app-line bg-app-panel2 p-3" aria-label="Remembered local folders">
+            <h3 className="text-xs font-semibold text-app-text">Your saved folders</h3>
+            <p className="mt-1 text-2xs text-app-muted">
+              Handles are kept in this browser. ForgePath checks permission before reading files.
+            </p>
+            <div className="mt-3 space-y-2">
+              {savedFolders.map((folder) => (
+                <div key={folder.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-app-line p-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-app-text">{folder.folderName}</p>
+                    <p className="text-micro text-app-muted">
+                      {savedData?.permissions[folder.id] === "granted" ? "Permission available" : "Permission must be confirmed"}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" className="btn text-xs" disabled={loading}
+                      onClick={() => void reopenSavedFolder(folder)}>
+                      {savedData?.permissions[folder.id] === "granted" ? "Open" : "Reconnect"}
+                    </button>
+                    <button type="button" className="btn text-xs" disabled={loading}
+                      onClick={() => void disconnectSavedFolder(folder)}>
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <div className="mb-4 flex items-start gap-2 rounded-lg border border-status-blue-line bg-status-blue-bg p-3">
           <LockKeyhole
             size={16}

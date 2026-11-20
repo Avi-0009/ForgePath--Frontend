@@ -26,6 +26,7 @@ const panel =
 
 const RepositoriesPage = () => {
   const token = useAuthStore((state) => state.token);
+  const userId = useAuthStore((state) => state.user?.id);
 
   const [sources, setSources] = useState<CodebaseSource[]>([]);
   const [selectedRoot, setSelectedRoot] = useState("");
@@ -144,7 +145,7 @@ const RepositoriesPage = () => {
           </div>
         )}
 
-        <LocalFolderPicker />
+        <LocalFolderPicker key={userId ?? "signed-out"} />
 
         <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-home">
           <section className={panel}>
