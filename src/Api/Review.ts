@@ -71,6 +71,49 @@ export const InvestigateProjectFile = (
   timeout: 270_000,
 }).json<CodeReviewFileResponse>();
 
+export interface QuestionInvestigationPreview {
+  project_id: string;
+  snapshot_id: string;
+  total_files: number;
+  selected_files: { path: string; score: number }[];
+  selection_method: string;
+  ai_calls: number;
+}
+
+export interface QuestionInvestigationReport {
+  project_id: string;
+  snapshot_id: string;
+  question: string;
+  summary: string;
+  findings: {
+    path: string;
+    title: string;
+    severity: ReviewFinding["severity"];
+    evidence: string;
+    explanation: string;
+    verification_status: "unverified";
+  }[];
+  selected_files: string[];
+  total_files: number;
+  ai_calls: number;
+  scope: string;
+}
+
+export const PreviewProjectInvestigation = (
+  token: string, projectId: string, question: string, maxFiles: number,
+) => apiClient.post(`projects/${projectId}/investigation/preview`, {
+  headers: { Authorization: `Bearer ${token}` },
+  json: { question, max_files: maxFiles },
+}).json<QuestionInvestigationPreview>();
+
+export const InvestigateProjectQuestion = (
+  token: string, projectId: string, question: string, maxFiles: number, snapshotId: string,
+) => apiClient.post(`projects/${projectId}/investigation/question`, {
+  headers: { Authorization: `Bearer ${token}` },
+  json: { question, max_files: maxFiles, expected_snapshot_id: snapshotId },
+  timeout: 270_000,
+}).json<QuestionInvestigationReport>();
+
 export interface CodePatchRequest {
   workspace_root: string;
   relative_path: string;

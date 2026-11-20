@@ -17,6 +17,10 @@ import {
 import {
   GetProjectInvestigationFiles,
   InvestigateProjectFile,
+  PreviewProjectInvestigation,
+  InvestigateProjectQuestion,
+  type QuestionInvestigationPreview,
+  type QuestionInvestigationReport,
   type CodeReviewFileResponse,
   type ReviewFinding,
 } from "../Api/Review";
@@ -147,6 +151,12 @@ const InvestigationPage = () => {
     useState<CodeReviewFileResponse | null>(null);
   const [loadingSources, setLoadingSources] = useState(false);
   const [reviewing, setReviewing] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [maxFiles, setMaxFiles] = useState(5);
+  const [preview, setPreview] = useState<QuestionInvestigationPreview | null>(null);
+  const [questionReport, setQuestionReport] = useState<QuestionInvestigationReport | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [investigatingQuestion, setInvestigatingQuestion] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -250,6 +260,8 @@ const InvestigationPage = () => {
     setFileKey("");
     setFileSearch("");
     resetReview();
+    setPreview(null);
+    setQuestionReport(null);
   };
 
   const handleFileChange = (key: string) => {
@@ -263,7 +275,41 @@ const InvestigationPage = () => {
     setSources([]);
     setFileKey("");
     resetReview();
+    setPreview(null);
+    setQuestionReport(null);
     setReloadKey((value) => value + 1);
+  };
+
+  const previewQuestion = async () => {
+    if (!token || !sourceRoot || question.trim().length < 3) return;
+    setPreviewing(true);
+    setError(null);
+    setPreview(null);
+    setQuestionReport(null);
+    try {
+      const result = await withAuthentication(token, (accessToken) =>
+        PreviewProjectInvestigation(accessToken, sourceRoot, question.trim(), maxFiles));
+      setPreview(result);
+    } catch (cause) {
+      setError(await getErrorMessage(cause, "Could not select relevant files"));
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  const investigateQuestion = async () => {
+    if (!token || !sourceRoot || !preview || investigatingQuestion) return;
+    setInvestigatingQuestion(true);
+    setError(null);
+    try {
+      const result = await withAuthentication(token, (accessToken) =>
+        InvestigateProjectQuestion(accessToken, sourceRoot, question.trim(), maxFiles, preview.snapshot_id));
+      setQuestionReport(result);
+    } catch (cause) {
+      setError(await getErrorMessage(cause, "Investigation failed"));
+    } finally {
+      setInvestigatingQuestion(false);
+    }
   };
 
   const startReview = async () => {
@@ -313,7 +359,112 @@ const InvestigationPage = () => {
           </div>
         </header>
 
-        <ActiveProjectReview detailed />
+        <section className={panelClass}>
+          <div className="border-b border-app-line px-4 py-4 sm:px-5">
+            <h2 className="text-base font-bold">Investigate a problem across your project</h2>
+            <p className="mt-1 text-xs text-app-muted">
+              Describe what you want to find. ForgePath ranks likely files locally first—no AI call until you confirm.
+            </p>
+          </div>
+          <div className="space-y-4 p-4 sm:p-5">
+            <label className="block text-xs font-semibold">
+              Project
+              <select
+                value={sourceRoot}
+                onChange={(event) => handleSourceChange(event.target.value)}
+                disabled={investigatingQuestion || previewing || reviewing}
+                className="mt-2 w-full rounded-lg border border-app-line bg-app-panel2 p-2.5 text-xs text-app-text"
+              >
+                <option value="">Choose a saved project</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>{project.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-xs font-semibold">
+              What should ForgePath investigate?
+              <textarea
+                value={question}
+                onChange={(event) => { setQuestion(event.target.value); setPreview(null); setQuestionReport(null); }}
+                placeholder="Example: Why are expired access tokens causing failures in task creation? Check the API route, auth handling and relevant tests."
+                maxLength={2000}
+                rows={3}
+                disabled={investigatingQuestion}
+                className="mt-2 w-full rounded-lg border border-app-line bg-app-panel2 p-3 text-xs text-app-text"
+              />
+            </label>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="text-xs font-semibold">
+              Files to inspect (max 10)
+                <select
+                  value={maxFiles}
+                  onChange={(event) => { setMaxFiles(Number(event.target.value)); setPreview(null); setQuestionReport(null); }}
+                  disabled={investigatingQuestion}
+                  className="mt-2 block rounded-lg border border-app-line bg-app-panel2 p-2.5 text-xs"
+                >
+                  {[3, 5, 8, 10].map((count) => <option key={count} value={count}>{count}</option>)}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void previewQuestion()}
+                disabled={!sourceRoot || question.trim().length < 3 || previewing || investigatingQuestion}
+              >
+                {previewing ? "Finding relevant files..." : "Find relevant files (free)"}
+              </button>
+            </div>
+            {preview && (
+              <div className="rounded-lg border border-app-line bg-app-panel2 p-4">
+                <p className="text-xs font-bold">
+                  Selected {preview.selected_files.length} of {preview.total_files} snapshot files
+                </p>
+                <p className="mt-1 text-2xs text-app-muted">
+                  Ranked using source names, declarations, terms, and imports. These files are candidates, not proof they contain the problem.
+                </p>
+                <ul className="mt-3 space-y-1 font-mono text-2xs text-app-muted">
+                  {preview.selected_files.map((item) => <li key={item.path}>{item.path}</li>)}
+                </ul>
+                {preview.selected_files.length === 0 && (
+                  <p className="mt-2 text-xs text-app-muted">
+                    No relevant files were found. Try using a function name, error message, API route, or subsystem name.
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary mt-4"
+                  onClick={() => void investigateQuestion()}
+                  disabled={investigatingQuestion || preview.selected_files.length === 0}
+                >
+                  {investigatingQuestion ? "Investigating..." : "Run multi-file investigation (1 AI call)"}
+                </button>
+              </div>
+            )}
+            {questionReport && (
+              <div className="space-y-3 rounded-lg border border-app-line bg-app-panel2 p-4">
+                <h3 className="text-sm font-bold">Investigation results</h3>
+                <p className="text-2xs text-app-muted">
+                  AI analyzed excerpts from {questionReport.selected_files.length} of {questionReport.total_files} files.
+                  Findings are unverified. Other project files were not examined.
+                </p>
+                <p className="whitespace-pre-wrap text-xs text-app-text">{questionReport.summary}</p>
+                {questionReport.findings.map((finding, index) => (
+                  <article key={`${finding.path}-${index}`} className="rounded-lg border border-app-line p-3">
+                    <p className="text-xs font-semibold">{finding.title} · {finding.severity}</p>
+                    <p className="mt-1 break-all font-mono text-2xs text-status-blue">{finding.path}</p>
+                    <p className="mt-2 text-xs text-app-muted">{finding.explanation}</p>
+                    <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-app-bg p-2 text-2xs">{finding.evidence}</pre>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <details className="rounded-panel border border-app-line bg-app-panel p-4">
+          <summary className="cursor-pointer text-xs font-semibold">Initial automated review (limited first-pass report)</summary>
+          <div className="mt-4"><ActiveProjectReview detailed /></div>
+        </details>
 
         {/* Evidence-first callout */}
         <div className="flex items-start gap-3 rounded-callout border border-status-blue-line bg-status-blue-bg p-3.5">
