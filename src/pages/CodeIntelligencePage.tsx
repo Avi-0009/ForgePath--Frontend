@@ -15,14 +15,15 @@ import {
 } from "lucide-react";
 
 import {
-  getCodebaseSources,
   getCodeIntelligenceError,
-  searchCodebase,
+  searchProjectCodebase,
   type CodebaseSource,
   type CodeSearchResponse,
   type SearchHit,
 } from "../Api/CodeIntelligence";
+import { listProjects } from "../Api/ProjectActivation";
 import { useAuthStore } from "../store/useAuthStore";
+import { useActiveProjectId } from "../store/useActiveProjectId";
 
 const suggestedQuestions = [
   "Where is session expiry checked?",
@@ -100,6 +101,7 @@ const DetailRow = ({
 
 const CodeIntelligencePage = () => {
   const token = useAuthStore((state) => state.token);
+  const activeProjectId = useActiveProjectId();
 
   const [sources, setSources] = useState<CodebaseSource[]>([]);
   const [selectedSource, setSelectedSource] = useState("");
@@ -129,7 +131,13 @@ const CodeIntelligencePage = () => {
       }
 
       try {
-        const availableSources = await getCodebaseSources(token);
+        const { items } = await listProjects(token);
+        const availableSources: CodebaseSource[] = items
+          .filter((project) => project.status === "ready")
+          .map((project) => ({
+            name: project.name,
+            workspaceRoot: project.id,
+          }));
 
         if (cancelled) return;
 
@@ -139,7 +147,8 @@ const CodeIntelligencePage = () => {
             (source) => source.workspaceRoot === current,
           )
             ? current
-            : (availableSources[0]?.workspaceRoot ?? ""),
+            : (availableSources.find((source) => source.workspaceRoot === activeProjectId)
+                ?.workspaceRoot ?? availableSources[0]?.workspaceRoot ?? ""),
         );
         setSourceError(null);
       } catch (error) {
@@ -158,7 +167,7 @@ const CodeIntelligencePage = () => {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, activeProjectId]);
 
   const handleSourceChange = (workspaceRoot: string) => {
     setSelectedSource(workspaceRoot);
@@ -192,11 +201,7 @@ const CodeIntelligencePage = () => {
     setResult(null);
 
     try {
-      const response = await searchCodebase(token, {
-        workspace_root: selectedSource,
-        query,
-        top_k: 6,
-      });
+      const response = await searchProjectCodebase(token, selectedSource, query, 6);
 
       setResult(response);
     } catch (error) {
@@ -226,8 +231,8 @@ const CodeIntelligencePage = () => {
             </h1>
 
             <p className="mt-1 max-w-170 text-[13px] leading-relaxed text-app-muted">
-              Search indexed source code and inspect supporting
-              evidence with file paths and line ranges.
+              Search the selected project's saved code snapshot and inspect
+              exact supporting excerpts with file paths and line ranges.
             </p>
           </div>
 
@@ -251,7 +256,7 @@ const CodeIntelligencePage = () => {
                 </h2>
 
                 <p className="mt-1 text-2xs text-app-muted">
-                  Semantic search with source evidence
+                  Snapshot text search with source evidence
                 </p>
               </div>
 

@@ -118,6 +118,20 @@ export const searchCodebase = async (
   );
 };
 
+/** Search the active project's saved snapshot, never an OS filesystem path. */
+export const searchProjectCodebase = async (
+  token: string,
+  projectId: string,
+  query: string,
+  topK = 6,
+): Promise<CodeSearchResponse> => withAuthentication(token, (accessToken) =>
+  apiClient.post(`projects/${encodeURIComponent(projectId)}/search`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    json: { query, top_k: topK },
+    timeout: 60_000,
+  }).json<CodeSearchResponse>(),
+);
+
 export const getCodeIntelligenceError = async (
   error: unknown,
 ): Promise<string> => {
