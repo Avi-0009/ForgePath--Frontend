@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { HTTPError } from "ky";
 import {
   AlertCircle,
@@ -7,7 +7,6 @@ import {
   FileCode2,
   FileSearch,
   FolderGit2,
-  GitPullRequest,
   Info,
   LoaderCircle,
   RefreshCw,
@@ -15,16 +14,16 @@ import {
   ShieldAlert,
 } from "lucide-react";
 
-import { GetWorkspaceTree, type FileNode } from "../Api/Workspace";
 import {
-  InitiateCodeReview,
-  GenerateCodePatch,
+  GetProjectInvestigationFiles,
+  InvestigateProjectFile,
   type CodeReviewFileResponse,
   type ReviewFinding,
 } from "../Api/Review";
+import { listProjects, type ActivatedProject } from "../Api/ProjectActivation";
 import { getTaskHistory } from "../Api/Tasks";
 import { useAuthStore } from "../store/useAuthStore";
-import { useWorkspaceStore } from "../store/useWorkspaceStore";
+import { useActiveProjectId } from "../store/useActiveProjectId";
 import ActiveProjectReview from "../components/reviews/ActiveProjectReview";
 
 type Severity = ReviewFinding["severity"];
@@ -32,7 +31,6 @@ type SeverityFilter = "all" | Severity;
 
 type SourceFile = {
   key: string;
-  workspaceRoot: string;
   relativePath: string;
   name: string;
 };
@@ -61,29 +59,6 @@ const severityClasses: Record<Severity, string> = {
   info:
     "border-status-blue-line bg-status-blue-bg text-status-blue",
 };
-
-const collectFiles = (
-  nodes: FileNode[],
-  inheritedRoot = "",
-): SourceFile[] =>
-  nodes.flatMap((node) => {
-    const root = node.workspace_root || inheritedRoot;
-
-    if (node.is_dir) {
-      return collectFiles(node.children ?? [], root);
-    }
-
-    if (!root || !node.relative_path) return [];
-
-    return [
-      {
-        key: `${root}:${node.relative_path}`,
-        workspaceRoot: root,
-        relativePath: node.relative_path,
-        name: node.name,
-      },
-    ];
-  });
 
 const getErrorMessage = async (
   error: unknown,
@@ -156,23 +131,10 @@ const withAuthentication = async <T,>(
 };
 
 const InvestigationPage = () => {
-  const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
-
-  const setWorkspaceFile = useWorkspaceStore(
-    (state) => state.setSelectedFile,
-  );
-  const setReviewResult = useWorkspaceStore(
-    (state) => state.setReviewResult,
-  );
-  const setPatchResult = useWorkspaceStore(
-    (state) => state.setPatchResult,
-  );
-  const setSelectedFinding = useWorkspaceStore(
-    (state) => state.setSelectedFinding,
-  );
-
-  const [sources, setSources] = useState<FileNode[]>([]);
+  const activeProjectId = useActiveProjectId();
+  const [projects, setProjects] = useState<ActivatedProject[]>([]);
+  const [sources, setSources] = useState<SourceFile[]>([]);
   const [sourceRoot, setSourceRoot] = useState("");
   const [fileKey, setFileKey] = useState("");
   const [fileSearch, setFileSearch] = useState("");
@@ -185,76 +147,78 @@ const InvestigationPage = () => {
     useState<CodeReviewFileResponse | null>(null);
   const [loadingSources, setLoadingSources] = useState(false);
   const [reviewing, setReviewing] = useState(false);
-  const [generatingPatch, setGeneratingPatch] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadSources = async () => {
-      if (!token) return;
+    const loadProjects = async () => {
+      if (!token) {
+        setLoadingSources(false);
+        return;
+      }
 
       try {
-        const tree = await withAuthentication(
-          token,
-          (accessToken) => GetWorkspaceTree(accessToken),
-        );
-
+        const result = await withAuthentication(token, (accessToken) => listProjects(accessToken));
         if (cancelled) return;
-
-        setSources(
-          (tree.children ?? []).filter((node) => node.is_dir),
-        );
+        const ready = result.items.filter((item) => item.status === "ready");
+        setProjects(ready);
+        setSourceRoot((current) => ready.some((item) => item.id === current)
+          ? current
+          : (ready.find((item) => item.id === activeProjectId)?.id ?? ready[0]?.id ?? ""));
         setError(null);
       } catch (cause) {
         if (cancelled) return;
-
-        setError(
-          await getErrorMessage(cause, "Could not load codebases"),
-        );
+        setError(await getErrorMessage(cause, "Could not load projects"));
       } finally {
         if (!cancelled) setLoadingSources(false);
       }
     };
 
-    void loadSources();
+    void loadProjects();
 
     return () => {
       cancelled = true;
     };
-  }, [token, reloadKey]);
+  }, [token, reloadKey, activeProjectId]);
 
-  const allFiles = useMemo(
-    () => collectFiles(sources),
-    [sources],
-  );
-
-  const availableRoots = useMemo(
-    () =>
-      sources
-        .filter((node) => Boolean(node.workspace_root))
-        .map((node) => ({
-          root: node.workspace_root as string,
-          name: node.name,
-        })),
-    [sources],
-  );
+  useEffect(() => {
+    if (!token || !sourceRoot) return;
+    let cancelled = false;
+    const loadFiles = async () => {
+      try {
+        const result = await withAuthentication(token, (accessToken) =>
+          GetProjectInvestigationFiles(accessToken, sourceRoot));
+        if (cancelled) return;
+        setSources(result.files.map((path) => ({
+          key: `${sourceRoot}:${path}`,
+          relativePath: path,
+          name: path.split("/").at(-1) ?? path,
+        })));
+      } catch (cause) {
+        if (cancelled) return;
+        setSources([]);
+        setError(await getErrorMessage(cause, "Could not load snapshot files"));
+      }
+    };
+    void loadFiles();
+    return () => { cancelled = true; };
+  }, [token, sourceRoot, reloadKey]);
 
   const filteredFiles = useMemo(() => {
     const query = fileSearch.trim().toLowerCase();
 
-    return allFiles
-      .filter((file) => file.workspaceRoot === sourceRoot)
+    return sources
       .filter(
         (file) =>
           !query ||
           file.relativePath.toLowerCase().includes(query),
       );
-  }, [allFiles, sourceRoot, fileSearch]);
+  }, [sources, fileSearch]);
 
   const selectedFile =
-    allFiles.find((file) => file.key === fileKey) ?? null;
+    sources.find((file) => file.key === fileKey) ?? null;
 
   const findings = useMemo(
     () =>
@@ -282,6 +246,7 @@ const InvestigationPage = () => {
 
   const handleSourceChange = (root: string) => {
     setSourceRoot(root);
+    setSources([]);
     setFileKey("");
     setFileSearch("");
     resetReview();
@@ -296,14 +261,13 @@ const InvestigationPage = () => {
     setLoadingSources(true);
     setError(null);
     setSources([]);
-    setSourceRoot("");
     setFileKey("");
     resetReview();
     setReloadKey((value) => value + 1);
   };
 
   const startReview = async () => {
-    if (!token || !selectedFile || reviewing) return;
+    if (!token || !sourceRoot || !selectedFile || reviewing) return;
 
     setReviewing(true);
     setError(null);
@@ -311,75 +275,16 @@ const InvestigationPage = () => {
 
     try {
       const result = await withAuthentication(token, (accessToken) =>
-        InitiateCodeReview(accessToken, {
-          workspace_root: selectedFile.workspaceRoot,
+        InvestigateProjectFile(accessToken, sourceRoot, {
           relative_path: selectedFile.relativePath,
           review_mode: reviewMode,
         }),
       );
-
-      // Preserve the result for the existing workspace/patch flow.
-      setWorkspaceFile({
-        name: selectedFile.name,
-        path: selectedFile.relativePath,
-        is_dir: false,
-        workspace_root: selectedFile.workspaceRoot,
-        relative_path: selectedFile.relativePath,
-      });
-      setReviewResult(result);
-      setPatchResult(null);
-      setSelectedFinding(null);
       setReview(result);
     } catch (cause) {
       setError(await getErrorMessage(cause, "Review failed"));
     } finally {
       setReviewing(false);
-    }
-  };
-
-  const generatePatch = async (finding: ReviewFinding) => {
-    if (
-      !token ||
-      !selectedFile ||
-      !review ||
-      !finding.suggested_fix?.trim() ||
-      generatingPatch
-    ) {
-      return;
-    }
-
-    setGeneratingPatch(true);
-    setError(null);
-
-    try {
-      const proposal = await withAuthentication(
-        token,
-        (accessToken) =>
-          GenerateCodePatch(accessToken, {
-            workspace_root: selectedFile.workspaceRoot,
-            relative_path: review.relative_path,
-            expected_sha256: review.sha256,
-            finding_title: finding.title,
-            finding_evidence: finding.evidence,
-            finding_explanation: finding.explanation,
-            suggested_fix: finding.suggested_fix!,
-          }),
-      );
-
-      // Generating is not applying. Existing workspace page
-      // currently provides the full diff and approval controls.
-      setSelectedFinding(finding);
-      setPatchResult(proposal);
-      navigate("/patch-review");
-    } catch (cause) {
-      setError(
-        await getErrorMessage(
-          cause,
-          "Could not generate the patch proposal",
-        ),
-      );
-    } finally {
-      setGeneratingPatch(false);
     }
   };
 
@@ -404,14 +309,6 @@ const InvestigationPage = () => {
           <div className="flex flex-wrap gap-2">
             <Link to="/runs" className="btn">
               View run
-            </Link>
-            <Link
-              to="/patch-review"
-              className="btn btn-primary"
-              title="Review the current patch proposal"
-            >
-              <GitPullRequest size={15} aria-hidden="true" />
-              Review patches
             </Link>
           </div>
         </header>
@@ -440,7 +337,7 @@ const InvestigationPage = () => {
                 Select source file
               </h2>
               <p className="mt-1 text-2xs text-app-muted">
-                Review a file from a configured, permitted codebase
+                Review a file from a saved, private project snapshot
               </p>
             </div>
 
@@ -478,8 +375,8 @@ const InvestigationPage = () => {
                     : "Choose a codebase"}
                 </option>
 
-                {availableRoots.map((source) => (
-                  <option key={source.root} value={source.root}>
+                {projects.map((source) => (
+                  <option key={source.id} value={source.id}>
                     {source.name}
                   </option>
                 ))}
@@ -717,24 +614,9 @@ const InvestigationPage = () => {
                               {finding.suggested_fix}
                             </p>
 
-                            <button
-                              type="button"
-                              onClick={() => generatePatch(finding)}
-                              disabled={
-                                generatingPatch || reviewing
-                              }
-                              className="btn btn-primary mt-3 disabled:opacity-50"
-                            >
-                              {generatingPatch ? (
-                                <LoaderCircle
-                                  size={14}
-                                  className="animate-spin"
-                                />
-                              ) : (
-                                <GitPullRequest size={14} />
-                              )}
-                              Generate/review patch
-                            </button>
+                            <p className="mt-3 text-2xs text-app-muted">
+                              Read-only snapshot: patch generation for this source is not enabled.
+                            </p>
                           </div>
                         )}
                       </article>

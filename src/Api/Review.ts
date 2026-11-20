@@ -48,6 +48,29 @@ export const InitiateCodeReview = async (
     .json<CodeReviewFileResponse>();
 };
 
+export interface ProjectInvestigationFiles {
+  project_id: string;
+  snapshot_id: string;
+  files: string[];
+}
+
+export const GetProjectInvestigationFiles = (
+  token: string,
+  projectId: string,
+) => apiClient.get(`projects/${projectId}/investigation/files`, {
+  headers: { Authorization: `Bearer ${token}` },
+}).json<ProjectInvestigationFiles>();
+
+export const InvestigateProjectFile = (
+  token: string,
+  projectId: string,
+  data: { relative_path: string; review_mode: CodeReviewFileRequest["review_mode"] },
+) => apiClient.post(`projects/${projectId}/investigation`, {
+  headers: { Authorization: `Bearer ${token}` },
+  json: data,
+  timeout: 270_000,
+}).json<CodeReviewFileResponse>();
+
 export interface CodePatchRequest {
   workspace_root: string;
   relative_path: string;
