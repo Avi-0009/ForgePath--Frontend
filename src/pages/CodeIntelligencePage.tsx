@@ -33,6 +33,7 @@ import {
 import { listProjects } from "../Api/ProjectActivation";
 import { useAuthStore } from "../store/useAuthStore";
 import { useActiveProjectId } from "../store/useActiveProjectId";
+import ReferenceIntegrityPanel from "../components/intelligence/ReferenceIntegrityPanel";
 
 const suggestedQuestions = [
   "Where is session expiry checked?",
@@ -334,6 +335,13 @@ const CodeIntelligencePage = () => {
             <ArrowUpRight size={13} aria-hidden="true" />
           </Link>
         </header>
+
+        <ReferenceIntegrityPanel
+          key={selectedSource}
+          token={token}
+          projectId={selectedSource}
+          projectName={selectedSourceName}
+        />
 
         <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-home">
           {/* Main query panel */}

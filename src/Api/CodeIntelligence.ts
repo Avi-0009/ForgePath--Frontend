@@ -132,6 +132,47 @@ export const searchProjectCodebase = async (
   }).json<CodeSearchResponse>(),
 );
 
+export type ProjectReferenceCandidate = {
+  source_path: string;
+  line: number;
+  specifier: string;
+  kind: "import" | "svg_asset" | "python_import";
+  candidate_paths: string[];
+};
+
+export type ProjectReferenceReport = {
+  project_id: string;
+  snapshot_id: string;
+  files_in_snapshot: number;
+  svg_paths_in_manifest: number;
+  references_checked: number;
+  references_resolved: number;
+  references_unresolved: number;
+  results_truncated: boolean;
+  missing_candidates: ProjectReferenceCandidate[];
+  limitations: string;
+};
+
+export const getProjectReferenceReport = (
+  token: string,
+  projectId: string,
+  limit = 100,
+): Promise<ProjectReferenceReport> =>
+  withAuthentication(token, (accessToken) =>
+    apiClient
+      .get(
+        `projects/${encodeURIComponent(projectId)}/references`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          searchParams: { limit },
+          timeout: 60_000,
+        },
+      )
+      .json<ProjectReferenceReport>(),
+  );
+
 export type SemanticIndexStatus = {
   status: "disabled" | "not_indexed" | "ready";
   snapshot_id: string;
