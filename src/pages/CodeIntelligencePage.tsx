@@ -17,6 +17,12 @@ import {
 import {
   getCodeIntelligenceError,
   searchProjectCodebase,
+  getProjectSemanticIndexStatus,
+  previewProjectSemanticIndex,
+  createProjectSemanticIndex,
+  searchProjectSemanticIndex,
+  type SemanticIndexStatus,
+  type SemanticIndexPreview,
   type CodebaseSource,
   type CodeSearchResponse,
   type SearchHit,
@@ -118,6 +124,11 @@ const CodeIntelligencePage = () => {
   const [searchError, setSearchError] = useState<string | null>(
     null,
   );
+  const [semanticStatus, setSemanticStatus] = useState<SemanticIndexStatus | null>(null);
+  const [semanticPreview, setSemanticPreview] = useState<SemanticIndexPreview | null>(null);
+  const [semanticBusy, setSemanticBusy] = useState(false);
+  const [semanticError, setSemanticError] = useState<string | null>(null);
+  const [searchMode, setSearchMode] = useState<"text" | "semantic">("text");
 
   useEffect(() => {
     let cancelled = false;
@@ -169,10 +180,53 @@ const CodeIntelligencePage = () => {
     };
   }, [token, activeProjectId]);
 
+  useEffect(() => {
+    if (!token || !selectedSource) return;
+    let cancelled = false;
+    void getProjectSemanticIndexStatus(token, selectedSource).then((result) => {
+      if (!cancelled) setSemanticStatus(result);
+    }).catch(async (cause) => {
+      if (!cancelled) setSemanticError(await getCodeIntelligenceError(cause));
+    });
+    return () => { cancelled = true; };
+  }, [token, selectedSource]);
+
   const handleSourceChange = (workspaceRoot: string) => {
     setSelectedSource(workspaceRoot);
     setResult(null);
     setSearchError(null);
+    setSemanticStatus(null);
+    setSemanticPreview(null);
+    setSemanticError(null);
+    setSearchMode("text");
+  };
+
+  const previewIndex = async () => {
+    if (!token || !selectedSource) return;
+    setSemanticBusy(true);
+    setSemanticError(null);
+    try {
+      setSemanticPreview(await previewProjectSemanticIndex(token, selectedSource));
+    } catch (cause) {
+      setSemanticError(await getCodeIntelligenceError(cause));
+    } finally {
+      setSemanticBusy(false);
+    }
+  };
+
+  const buildIndex = async () => {
+    if (!token || !selectedSource || !semanticPreview?.within_limit) return;
+    setSemanticBusy(true);
+    setSemanticError(null);
+    try {
+      await createProjectSemanticIndex(token, selectedSource, semanticPreview.snapshot_id);
+      setSemanticPreview(null);
+      setSemanticStatus(await getProjectSemanticIndexStatus(token, selectedSource));
+    } catch (cause) {
+      setSemanticError(await getCodeIntelligenceError(cause));
+    } finally {
+      setSemanticBusy(false);
+    }
   };
 
   const handleSearch = async (
@@ -201,7 +255,9 @@ const CodeIntelligencePage = () => {
     setResult(null);
 
     try {
-      const response = await searchProjectCodebase(token, selectedSource, query, 6);
+      const response = searchMode === "semantic"
+        ? await searchProjectSemanticIndex(token, selectedSource, query, 6)
+        : await searchProjectCodebase(token, selectedSource, query, 6);
 
       setResult(response);
     } catch (error) {
@@ -322,9 +378,68 @@ const CodeIntelligencePage = () => {
                   </select>
 
                   <p className="mt-2 text-micro text-app-dim">
-                    Only codebases configured on the backend
-                    can be selected.
+                    Only saved projects owned by your account can be selected.
                   </p>
+                </div>
+
+                <div className="mb-4 rounded-lg border border-app-line bg-app-panel2 p-4">
+                  <p className="text-xs font-bold">Project semantic index</p>
+                  <p className="mt-1 text-2xs text-app-muted">
+                    {semanticStatus?.status === "ready"
+                      ? `Indexed snapshot ready · ${semanticStatus.embedding_model}`
+                      : semanticStatus?.status === "disabled"
+                        ? (semanticStatus.message ?? "Embedding provider is disabled on the backend.")
+                        : "This snapshot has not been semantically indexed."}
+                  </p>
+                  {semanticStatus?.status === "not_indexed" && (
+                    <button
+                      type="button"
+                      onClick={() => void previewIndex()}
+                      disabled={semanticBusy}
+                      className="btn mt-3"
+                    >
+                      {semanticBusy ? "Checking indexing size..." : "Preview embedding cost and size"}
+                    </button>
+                  )}
+                  {semanticPreview && (
+                    <div className="mt-3 rounded-lg border border-status-amber-line bg-status-amber-bg p-3 text-2xs text-status-amber">
+                      <p>
+                        {semanticPreview.file_count} files · {semanticPreview.estimated_chunks} estimated chunks
+                        · model: {semanticPreview.embedding_model}
+                      </p>
+                      <p className="mt-1">
+                        Embedding these chunks sends source excerpts to the configured provider and may incur charges.
+                        The exact price is not estimated here. No indexing has started.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-primary mt-3"
+                        onClick={() => void buildIndex()}
+                        disabled={semanticBusy || !semanticPreview.within_limit}
+                      >
+                        {semanticBusy ? "Indexing project..." : "Confirm and index project"}
+                      </button>
+                      {!semanticPreview.within_limit && (
+                        <p className="mt-2">This snapshot exceeds the {semanticPreview.max_chunks}-chunk limit.</p>
+                      )}
+                    </div>
+                  )}
+                  {semanticError && <p role="alert" className="mt-2 text-xs text-status-red">{semanticError}</p>}
+                </div>
+
+                <div className="mb-4">
+                  <label htmlFor="intel-mode" className="mb-2 block text-2xs font-semibold">Search mode</label>
+                  <select
+                    id="intel-mode"
+                    value={searchMode}
+                    onChange={(event) => { setSearchMode(event.target.value as "text" | "semantic"); setResult(null); }}
+                    className="w-full rounded-lg border border-app-line bg-app-bg p-2.5 text-xs"
+                  >
+                    <option value="text">Snapshot text search (no AI calls)</option>
+                    <option value="semantic" disabled={semanticStatus?.status !== "ready"}>
+                      Semantic vector search (requires current index; query uses embeddings)
+                    </option>
+                  </select>
                 </div>
 
                 <div className="mb-4">

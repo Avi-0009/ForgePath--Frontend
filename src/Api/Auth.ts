@@ -1,4 +1,7 @@
 import ky from "ky";
+import { beginApiActivity, describeApiActivity } from "../store/useApiActivity";
+
+const pendingActivity = new WeakMap<Request, () => void>();
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || "/api/v1"
@@ -9,6 +12,27 @@ export const apiClient = ky.create({
   credentials: "include",
   retry: 0,
   timeout: 20_000,
+  hooks: {
+    beforeRequest: [
+      ({ request }) => {
+        const label = describeApiActivity(request.method, new URL(request.url).pathname);
+        if (label) pendingActivity.set(request, beginApiActivity(label));
+      },
+    ],
+    afterResponse: [
+      ({ request }) => {
+        pendingActivity.get(request)?.();
+        pendingActivity.delete(request);
+      },
+    ],
+    beforeError: [
+      ({ request, error }) => {
+        pendingActivity.get(request)?.();
+        pendingActivity.delete(request);
+        return error;
+      },
+    ],
+  },
 });
 
 export interface UserResponse {

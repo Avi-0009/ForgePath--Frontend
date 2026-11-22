@@ -132,6 +132,76 @@ export const searchProjectCodebase = async (
   }).json<CodeSearchResponse>(),
 );
 
+export type SemanticIndexStatus = {
+  status: "disabled" | "not_indexed" | "ready";
+  snapshot_id: string;
+  file_count: number;
+  estimated_chunks: number | null;
+  embedding_model?: string;
+  message?: string;
+};
+
+export type SemanticIndexPreview = {
+  snapshot_id: string;
+  file_count: number;
+  estimated_chunks: number;
+  max_chunks: number;
+  embedding_model: string;
+  requires_confirmation: boolean;
+  within_limit: boolean;
+  ai_calls: number;
+};
+
+export const getProjectSemanticIndexStatus = (token: string, projectId: string) =>
+  withAuthentication(token, (accessToken) => apiClient.get(
+    `projects/${encodeURIComponent(projectId)}/semantic-index`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  ).json<SemanticIndexStatus>());
+
+export const previewProjectSemanticIndex = (token: string, projectId: string) =>
+  withAuthentication(token, (accessToken) => apiClient.post(
+    `projects/${encodeURIComponent(projectId)}/semantic-index/preview`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  ).json<SemanticIndexPreview>());
+
+export const createProjectSemanticIndex = (
+  token: string, projectId: string, snapshotId: string,
+) => withAuthentication(token, (accessToken) => apiClient.post(
+  `projects/${encodeURIComponent(projectId)}/semantic-index`,
+  {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    json: { expected_snapshot_id: snapshotId, confirm_indexing: true },
+    timeout: 600_000,
+  },
+).json<{ status: "ready"; snapshot_id: string; vectors_upserted: number; chunks_embedded: number }>());
+
+export const searchProjectSemanticIndex = (
+  token: string, projectId: string, query: string,
+  topK = 6,
+): Promise<CodeSearchResponse> => withAuthentication(token, async (accessToken) => {
+  const response = await apiClient.post(
+    `projects/${encodeURIComponent(projectId)}/semantic-search`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      json: { query, top_k: topK },
+      timeout: 90_000,
+    },
+  ).json<{ query: string; result_count: number; results: {
+    relative_path: string; content: string; start_line: number;
+    end_line: number; distance: number | null;
+  }[] }>();
+  return {
+    workspace_root: `project:${projectId}`,
+    query: response.query,
+    result_count: response.result_count,
+    results: response.results.map((hit, index) => ({
+      ...hit,
+      language: hit.relative_path.split(".").at(-1) ?? "",
+      chunk_index: index,
+    })),
+  };
+});
+
 export const getCodeIntelligenceError = async (
   error: unknown,
 ): Promise<string> => {

@@ -20,6 +20,7 @@ import {
   type WorkflowStatus,
 } from "../../Api/Tasks";
 import { useAuthStore } from "../../store/useAuthStore";
+import { useApiActivity } from "../../store/useApiActivity";
 
 interface AppHeaderProps {
   onOpenMenu: () => void;
@@ -148,6 +149,7 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
   const isAuthenticated = useAuthStore(
     (state) => state.isAuthenticated,
   );
+  const apiActivity = useApiActivity();
 
   const [openPanel, setOpenPanel] = useState<Panel>(null);
   const [pending, setPending] = useState<TaskHistoryItem[]>([]);
@@ -285,14 +287,29 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
         ref={controlsRef}
         className="relative flex shrink-0 items-center gap-2.5"
       >
-        <div className="flex h-8 shrink-0 items-center gap-2 rounded-lg border border-app-line px-2.5 text-2xs text-app-muted sm:px-3">
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          title={apiActivity ? `ForgePath is ${apiActivity.label.toLowerCase()}` : "ForgePath is ready"}
+          className={`flex h-8 max-w-[min(15rem,45vw)] shrink-0 items-center gap-2 overflow-hidden rounded-lg border px-2.5 text-2xs transition-all duration-300 sm:px-3 ${
+            apiActivity
+              ? "border-app-accent/50 bg-app-accent/10 text-app-accent shadow-[0_0_20px_rgba(193,240,107,0.16)]"
+              : "border-app-line bg-app-panel2 text-app-muted"
+          }`}
+        >
           <span
             aria-hidden="true"
-            className="h-1.5 w-1.5 rounded-full bg-app-accent"
+            className={`relative flex h-2 w-2 shrink-0 rounded-full bg-app-accent ${
+              apiActivity ? "shadow-[0_0_12px_rgba(193,240,107,0.9)] motion-safe:animate-pulse" : "opacity-65"
+            }`}
           />
-          <span className="whitespace-nowrap">
-            Running locally
+          <span className="truncate whitespace-nowrap" key={apiActivity?.id ?? "idle"}>
+            {apiActivity?.label ?? "Ready"}
           </span>
+          {apiActivity && (
+            <LoaderCircle size={12} aria-hidden="true" className="shrink-0 motion-safe:animate-spin" />
+          )}
         </div>
 
         <button
