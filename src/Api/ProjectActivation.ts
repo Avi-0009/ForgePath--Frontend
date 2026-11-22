@@ -18,6 +18,7 @@ export type ProjectListResponse = {
 };
 
 export type SnapshotReceipt = {
+  asset_paths: string[];
   project_id: string;
   snapshot_id: string;
   file_count: number;
@@ -78,9 +79,13 @@ export const uploadProjectSnapshot = (
   token: string,
   projectId: string,
   files: SnapshotFile[],
+  assetPaths: string[] = [],
 ) => apiClient.put(`projects/${projectId}/snapshot`, {
   headers: headers(token),
-  json: { files },
+  json: {
+    files,
+    asset_paths: assetPaths,
+  },
   timeout: 120_000,
 }).json<SnapshotReceipt>();
 

@@ -304,7 +304,10 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
               apiActivity ? "shadow-[0_0_12px_rgba(193,240,107,0.9)] motion-safe:animate-pulse" : "opacity-65"
             }`}
           />
-          <span className="truncate whitespace-nowrap" key={apiActivity?.id ?? "idle"}>
+          <span
+            className="relative top-px truncate whitespace-nowrap"
+            key={apiActivity?.id ?? "idle"}
+          >
             {apiActivity?.label ?? "Ready"}
           </span>
           {apiActivity && (

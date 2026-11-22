@@ -4,6 +4,7 @@ const MAX_FILES = 1000;
 const MAX_BYTES = 20 * 1024 * 1024;
 const MAX_FILE_BYTES = 1_000_000;
 const MAX_DEPTH = 12;
+const MAX_ASSET_PATHS = 1000;
 
 const excludedDirectories = new Set([
   ".git", ".svn", ".hg", ".next", ".nuxt", ".venv", "venv", "env",
@@ -22,19 +23,6 @@ const sourceExtensions = new Set([
 
 const sensitiveFile = (name: string) => {
   const lower = name.toLowerCase();
-
-    const blockedNames = new Set([
-      "pgadmin-servers.json",
-      "docker-compose.override.yml",
-      "service-account.json",
-      "secrets.json",
-      "credentials.json",
-    ]);
-
-    if (blockedNames.has(lower)) {
-      return true;
-    }
-
   return lower.startsWith(".") || lower.includes("secret") ||
     lower.includes("credential") || lower.includes("private_key") ||
     lower.startsWith("id_rsa") || lower.startsWith("id_ed25519") ||
@@ -48,13 +36,48 @@ const sensitiveFile = (name: string) => {
 };
 
 // Mirrors the backend's basic credential-pattern guard. Backend validation is authoritative.
-const suspectedCredential =
-  /(?:^|\r?\n)[ \t]*-----BEGIN [A-Z ]*PRIVATE KEY-----|authorization\s*[:=]\s*bearer\s+[A-Za-z0-9_+./=-]{18,}|(?:aws_secret_access_key|api[_-]?key|password|access[_-]?token)\s*[:=]\s*(['"])[A-Za-z0-9_+\-/=]{18,}\1|(?:aws_secret_access_key|api[_-]?key|password|access[_-]?token)\s*[:=]\s*(?:sk-[A-Za-z0-9_-]{18,}|ghp_[A-Za-z0-9]{18,}|AKIA[A-Z0-9]{16})(?![A-Za-z0-9_])/im;
+const suspectedCredential = /(?:^|\r?\n)[ \t]*-----BEGIN [A-Z ]*PRIVATE KEY-----|authorization\s*[:=]\s*bearer\s+[A-Za-z0-9_+./=-]{18,}|(?:aws_secret_access_key|api[_-]?key|password|access[_-]?token)\s*[:=]\s*(['"])[A-Za-z0-9_+\-/=]{18,}\1|(?:aws_secret_access_key|api[_-]?key|password|access[_-]?token)\s*[:=]\s*(?:sk-[A-Za-z0-9_-]{18,}|ghp_[A-Za-z0-9]{18,}|AKIA[A-Z0-9]{16})(?![A-Za-z0-9_])/im;
+
+// Do not guess an encoding for program source. Windows-authored Markdown can
+// legitimately be UTF-16 or Windows-1252; normalize it to UTF-8 on upload.
+export const decodeSourceBytes = (bytes: Uint8Array, extension: string): string | null => {
+  let content: string;
+  try {
+    if (bytes[0] === 0xff && bytes[1] === 0xfe) {
+      content = new TextDecoder("utf-16le", { fatal: true }).decode(bytes);
+    } else if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+      content = new TextDecoder("utf-16be", { fatal: true }).decode(bytes);
+    } else {
+      content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    }
+  } catch {
+    if (extension !== "md") return null;
+    try {
+      content = new TextDecoder("windows-1252", { fatal: true }).decode(bytes);
+    } catch {
+      return null;
+    }
+  }
+
+  // TextDecoder can decode some binary data, so check the resulting text.
+  // Allow normal whitespace, but not NUL, other control characters or U+FFFD.
+  for (const character of content) {
+    const code = character.charCodeAt(0);
+    if (code === 0xfffd || code === 0x7f ||
+        (code < 0x20 && code !== 0x09 && code !== 0x0a && code !== 0x0d) ||
+        (code >= 0x80 && code <= 0x9f)) {
+      return null;
+    }
+  }
+  return content;
+};
 
 type BuildResult = {
   files: SnapshotFile[];
+  assetPaths: string[];
   totalBytes: number;
   skippedFiles: number;
+  skippedUnrecognizedText: string[];
   scannedDirectories: number;
   skippedDirectories: number;
 };
@@ -63,12 +86,13 @@ export const collectLocalSnapshot = async (
   root: FileSystemDirectoryHandle,
 ): Promise<BuildResult> => {
   const files: SnapshotFile[] = [];
+  const assetPaths: string[] = [];
   let totalBytes = 0;
   let skippedFiles = 0;
+  const skippedUnrecognizedText: string[] = [];
   let scannedDirectories = 0; 
   let skippedDirectories = 0;
   const encoder = new TextEncoder();
-  const decoder = new TextDecoder("utf-8", { fatal: true });
 
   const scan = async (directory: FileSystemDirectoryHandle, parents: string[]): Promise<void> => {
     scannedDirectories += 1;
@@ -93,6 +117,14 @@ export const collectLocalSnapshot = async (
         continue;
       }
       const extension = handle.name.toLowerCase().split(".").at(-1) ?? "";
+      if (extension === "svg" && !sensitiveFile(handle.name)) {
+        if (assetPaths.length >= MAX_ASSET_PATHS) {
+          throw new Error("Project exceeds the 1,000 SVG-path inventory limit.");
+        }
+        // Record only its relative name. Never obtain a File or read SVG bytes.
+        assetPaths.push([...parents, handle.name].join("/"));
+        continue;
+      }
       if (sensitiveFile(handle.name) || !sourceExtensions.has(extension)) {
         skippedFiles += 1;
         continue;
@@ -102,32 +134,41 @@ export const collectLocalSnapshot = async (
       if (file.size > MAX_FILE_BYTES) {
         throw new Error("A source file exceeds the 1 MB limit.");
       }
-      let content: string;
-      try {
-        content = decoder.decode(await file.arrayBuffer());
-      } catch {
-        throw new Error("A source file is not valid UTF-8 text.");
+      const relativePath = [...parents, handle.name].join("/");
+      const content = decodeSourceBytes(new Uint8Array(await file.arrayBuffer()), extension);
+      if (content === null) {
+        // One unreadable or non-text source must not block the entire repository.
+        skippedFiles += 1;
+        skippedUnrecognizedText.push(relativePath);
+        continue;
       }
-      if (content.includes("\0") || suspectedCredential.test(content)) {
+      if (suspectedCredential.test(content)) {
         throw new Error(
-          `Cannot include ${[...parents, handle.name].join("/")}: ` +
+          `Cannot include ${relativePath}: ` +
           "possible credentials or binary data. Review this file before uploading.",
         );
       }
       const bytes = encoder.encode(content).byteLength;
+      if (bytes > MAX_FILE_BYTES) {
+        throw new Error(`Decoded source file ${relativePath} exceeds the 1 MB limit.`);
+      }
       totalBytes += bytes;
       if (totalBytes > MAX_BYTES) throw new Error("Project exceeds the 20 MB snapshot limit.");
-      files.push({ relative_path: [...parents, handle.name].join("/"), content });
+      files.push({ relative_path: relativePath, content });
     }
   };
 
   await scan(root, []);
   if (files.length === 0)
     throw new Error("No eligible source files were found.");
+  assetPaths.sort();
+  skippedUnrecognizedText.sort();
   return {
     files,
+    assetPaths,
     totalBytes,
     skippedFiles,
+    skippedUnrecognizedText,
     scannedDirectories,
     skippedDirectories,
   };

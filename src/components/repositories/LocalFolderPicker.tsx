@@ -278,8 +278,10 @@ const LocalFolderPicker = () => {
   const [preparedSnapshot, setPreparedSnapshot] = useState<{
     handle: FileSystemDirectoryHandle;
     files: number;
+    assetPaths: string[];
     bytes: number;
     skipped: number;
+    skippedUnrecognizedText: string[];
     directories: number;
   } | null>(null);
 
@@ -405,8 +407,10 @@ const LocalFolderPicker = () => {
       setPreparedSnapshot({
         handle: current.handle,
         files: snapshot.files.length,
+        assetPaths: snapshot.assetPaths,
         bytes: snapshot.totalBytes,
         skipped: snapshot.skippedFiles,
+        skippedUnrecognizedText: snapshot.skippedUnrecognizedText,
         directories: snapshot.scannedDirectories,
       });
     } catch (cause) {
@@ -441,7 +445,10 @@ const LocalFolderPicker = () => {
 
       if (
         snapshot.files.length !== preparedSnapshot.files ||
-        snapshot.totalBytes !== preparedSnapshot.bytes
+        snapshot.totalBytes !== preparedSnapshot.bytes ||
+        JSON.stringify(snapshot.assetPaths) !== JSON.stringify(preparedSnapshot.assetPaths) ||
+        JSON.stringify(snapshot.skippedUnrecognizedText) !==
+          JSON.stringify(preparedSnapshot.skippedUnrecognizedText)
       ) {
         setPreparedSnapshot(null);
         setProjectTarget("");
@@ -467,6 +474,7 @@ const LocalFolderPicker = () => {
         token,
         projectId,
         snapshot.files,
+        snapshot.assetPaths,
       );
 
       const project = await getProject(token, projectId);
@@ -1022,6 +1030,7 @@ const LocalFolderPicker = () => {
                     className="rounded-lg border border-status-blue-line bg-status-blue-bg p-3 text-2xs text-status-blue"
                   >
                     {preparedSnapshot.files} eligible files ·{" "}
+                    {preparedSnapshot.assetPaths.length} SVG paths inventoried ·{" "}
                     {preparedSnapshot.directories} directories scanned ·{" "}
                     {preparedSnapshot.skipped} excluded entries ·{" "}
                     {preparedSnapshot.bytes.toLocaleString()} bytes.
@@ -1030,6 +1039,11 @@ const LocalFolderPicker = () => {
                       No files have been uploaded and no AI requests
                       have been made.
                     </p>
+                    {preparedSnapshot.skippedUnrecognizedText.length > 0 && (
+                      <p className="mt-2 text-amber-300">
+                        Skipped files that are not supported text: {preparedSnapshot.skippedUnrecognizedText.join(", ")}
+                      </p>
+                    )}
                   </div>
                 )}
 

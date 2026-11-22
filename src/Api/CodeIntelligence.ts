@@ -152,6 +152,20 @@ export type SemanticIndexPreview = {
   ai_calls: number;
 };
 
+export type SemanticIndexJob = {
+  job_id: string;
+  project_id: string;
+  snapshot_id: string;
+  status: "queued" | "running" | "completed" | "failed" | "interrupted";
+  files_done: number;
+  total_files: number;
+  chunks_embedded: number;
+  estimated_chunks: number;
+  message: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export const getProjectSemanticIndexStatus = (token: string, projectId: string) =>
   withAuthentication(token, (accessToken) => apiClient.get(
     `projects/${encodeURIComponent(projectId)}/semantic-index`,
@@ -174,6 +188,27 @@ export const createProjectSemanticIndex = (
     timeout: 600_000,
   },
 ).json<{ status: "ready"; snapshot_id: string; vectors_upserted: number; chunks_embedded: number }>());
+
+export const startProjectSemanticIndexJob = (token: string, projectId: string, snapshotId: string) =>
+  withAuthentication(token, (accessToken) => apiClient.post(
+    `projects/${encodeURIComponent(projectId)}/semantic-index/jobs`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      json: { expected_snapshot_id: snapshotId, confirm_indexing: true },
+      timeout: 60_000,
+    },
+  ).json<SemanticIndexJob>());
+
+export const getProjectSemanticIndexJob = (token: string, projectId: string, jobId: string) =>
+  withAuthentication(token, (accessToken) => apiClient.get(
+    `projects/${encodeURIComponent(projectId)}/semantic-index/jobs/${encodeURIComponent(jobId)}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  ).json<SemanticIndexJob>());
+
+export const getLatestProjectSemanticIndexJob = (token: string, projectId: string) =>
+  withAuthentication(token, (accessToken) => apiClient.get(
+    `projects/${encodeURIComponent(projectId)}/semantic-index/jobs/latest`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  ).json<SemanticIndexJob | null>());
 
 export const searchProjectSemanticIndex = (
   token: string, projectId: string, query: string,

@@ -18,11 +18,14 @@ import {
   getCodeIntelligenceError,
   searchProjectCodebase,
   getProjectSemanticIndexStatus,
+  getProjectSemanticIndexJob,
+  getLatestProjectSemanticIndexJob,
   previewProjectSemanticIndex,
-  createProjectSemanticIndex,
+  startProjectSemanticIndexJob,
   searchProjectSemanticIndex,
   type SemanticIndexStatus,
   type SemanticIndexPreview,
+  type SemanticIndexJob,
   type CodebaseSource,
   type CodeSearchResponse,
   type SearchHit,
@@ -126,6 +129,7 @@ const CodeIntelligencePage = () => {
   );
   const [semanticStatus, setSemanticStatus] = useState<SemanticIndexStatus | null>(null);
   const [semanticPreview, setSemanticPreview] = useState<SemanticIndexPreview | null>(null);
+  const [semanticJob, setSemanticJob] = useState<SemanticIndexJob | null>(null);
   const [semanticBusy, setSemanticBusy] = useState(false);
   const [semanticError, setSemanticError] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState<"text" | "semantic">("text");
@@ -188,8 +192,36 @@ const CodeIntelligencePage = () => {
     }).catch(async (cause) => {
       if (!cancelled) setSemanticError(await getCodeIntelligenceError(cause));
     });
+    void getLatestProjectSemanticIndexJob(token, selectedSource).then((job) => {
+      if (!cancelled) setSemanticJob(job);
+    }).catch(() => { /* Semantic jobs may be disabled on the backend. */ });
     return () => { cancelled = true; };
   }, [token, selectedSource]);
+
+  useEffect(() => {
+    if (!token || !selectedSource || semanticJob?.project_id !== selectedSource ||
+        (semanticJob.status !== "queued" && semanticJob.status !== "running")) return;
+    let cancelled = false;
+    let polling = false;
+    const poll = async () => {
+      if (polling) return;
+      polling = true;
+      try {
+        const latest = await getProjectSemanticIndexJob(token, selectedSource, semanticJob.job_id);
+        if (cancelled) return;
+        setSemanticJob(latest);
+        if (latest.status === "completed") {
+          setSemanticStatus(await getProjectSemanticIndexStatus(token, selectedSource));
+        }
+      } catch (cause) {
+        if (!cancelled) setSemanticError(await getCodeIntelligenceError(cause));
+      } finally {
+        polling = false;
+      }
+    };
+    const timer = window.setInterval(() => { void poll(); }, 1500);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [token, selectedSource, semanticJob?.job_id, semanticJob?.project_id, semanticJob?.status]);
 
   const handleSourceChange = (workspaceRoot: string) => {
     setSelectedSource(workspaceRoot);
@@ -197,6 +229,7 @@ const CodeIntelligencePage = () => {
     setSearchError(null);
     setSemanticStatus(null);
     setSemanticPreview(null);
+    setSemanticJob(null);
     setSemanticError(null);
     setSearchMode("text");
   };
@@ -219,9 +252,9 @@ const CodeIntelligencePage = () => {
     setSemanticBusy(true);
     setSemanticError(null);
     try {
-      await createProjectSemanticIndex(token, selectedSource, semanticPreview.snapshot_id);
+      const job = await startProjectSemanticIndexJob(token, selectedSource, semanticPreview.snapshot_id);
+      setSemanticJob(job);
       setSemanticPreview(null);
-      setSemanticStatus(await getProjectSemanticIndexStatus(token, selectedSource));
     } catch (cause) {
       setSemanticError(await getCodeIntelligenceError(cause));
     } finally {
@@ -391,7 +424,8 @@ const CodeIntelligencePage = () => {
                         ? (semanticStatus.message ?? "Embedding provider is disabled on the backend.")
                         : "This snapshot has not been semantically indexed."}
                   </p>
-                  {semanticStatus?.status === "not_indexed" && (
+                  {semanticStatus?.status === "not_indexed" &&
+                    semanticJob?.status !== "queued" && semanticJob?.status !== "running" && (
                     <button
                       type="button"
                       onClick={() => void previewIndex()}
@@ -400,6 +434,24 @@ const CodeIntelligencePage = () => {
                     >
                       {semanticBusy ? "Checking indexing size..." : "Preview embedding cost and size"}
                     </button>
+                  )}
+                  {semanticJob?.project_id === selectedSource && (
+                    <div className="mt-3 rounded-lg border border-app-line bg-app-panel3 p-3 text-2xs" role="status" aria-live="polite">
+                      <p className="font-semibold">{semanticJob.message}</p>
+                      <p className="mt-1 text-app-muted">
+                        {semanticJob.files_done} / {semanticJob.total_files} files processed
+                        {" · "}{semanticJob.chunks_embedded} chunks embedded
+                      </p>
+                      <progress
+                        className="mt-2 h-2 w-full accent-app-accent"
+                        value={semanticJob.files_done}
+                        max={Math.max(1, semanticJob.total_files)}
+                        aria-label="Semantic indexing progress"
+                      />
+                      {(semanticJob.status === "failed" || semanticJob.status === "interrupted") && (
+                        <p className="mt-2 text-status-amber">Preview and confirm again to retry. Completed batches may be reused.</p>
+                      )}
+                    </div>
                   )}
                   {semanticPreview && (
                     <div className="mt-3 rounded-lg border border-status-amber-line bg-status-amber-bg p-3 text-2xs text-status-amber">
@@ -417,7 +469,7 @@ const CodeIntelligencePage = () => {
                         onClick={() => void buildIndex()}
                         disabled={semanticBusy || !semanticPreview.within_limit}
                       >
-                        {semanticBusy ? "Indexing project..." : "Confirm and index project"}
+                        {semanticBusy ? "Starting job..." : "Confirm and start background indexing"}
                       </button>
                       {!semanticPreview.within_limit && (
                         <p className="mt-2">This snapshot exceeds the {semanticPreview.max_chunks}-chunk limit.</p>
