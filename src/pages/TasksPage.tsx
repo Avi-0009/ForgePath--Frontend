@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
-  Check,
   CheckCircle2,
   ChevronRight,
   Clock3,

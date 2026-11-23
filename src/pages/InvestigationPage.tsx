@@ -29,6 +29,7 @@ import { getTaskHistory } from "../Api/Tasks";
 import { useAuthStore } from "../store/useAuthStore";
 import { useActiveProjectId } from "../store/useActiveProjectId";
 import ActiveProjectReview from "../components/reviews/ActiveProjectReview";
+import ProjectConversationPanel from "../components/investigation/ProjectConversationPanel";
 
 type Severity = ReviewFinding["severity"];
 type SeverityFilter = "all" | Severity;
@@ -544,6 +545,8 @@ const InvestigationPage = () => {
             )}
           </div>
         </section>
+
+        <ProjectConversationPanel key={sourceRoot} token={token ?? ""} projectId={sourceRoot} />
 
         <details className="rounded-panel border border-app-line bg-app-panel p-4">
           <summary className="cursor-pointer text-xs font-semibold">Initial automated review (limited first-pass report)</summary>
