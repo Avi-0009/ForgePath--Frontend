@@ -683,13 +683,13 @@ export default function TasksPage() {
                           {step.title}
                         </h3>
 
-                        {index === lifecycle.length - 1 && (
+                        {/* {index === lifecycle.length - 1 && (
                           <Check
                             size={13}
                             className="text-app-accent"
                             aria-hidden="true"
                           />
-                        )}
+                        )} */}
                       </div>
 
                       <p className="mt-1 text-2xs leading-relaxed text-app-muted">

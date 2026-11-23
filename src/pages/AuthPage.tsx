@@ -19,7 +19,7 @@ const AuthPage = () => {
                 : "opacity-100 translate-y-0"
             }`}
           >
-            <div className="min-h-full flex items-center justify-center p-6">
+            <div className="mx-auto max-w-app px-4 pb-16 pt-6 sm:px-6 sm:pt-8 md:px-9">
               <LoginForm setIsSignUp={setIsSignUp} />
             </div>
           </div>
@@ -30,7 +30,7 @@ const AuthPage = () => {
                 : "opacity-100 translate-y-0"
             }`}
           >
-            <div className="min-h-full flex items-center justify-center p-6">
+            <div className="mx-auto max-w-app px-4 pb-16 pt-6 sm:px-6 sm:pt-8 md:px-9">
               <SignupForm setIsSignUp={setIsSignUp} />
             </div>
           </div>
