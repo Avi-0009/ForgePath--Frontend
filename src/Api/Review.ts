@@ -114,6 +114,80 @@ export const InvestigateProjectQuestion = (
   timeout: 270_000,
 }).json<QuestionInvestigationReport>();
 
+// Context-aware investigation is version-pinned. Legacy question endpoints
+// remain available, but the investigation page uses this evidence-rich API.
+export interface ContextFilePreview {
+  path: string;
+  reason: string;
+  score: number;
+  start_line: number;
+  end_line: number;
+  excerpt_chars: number;
+}
+
+export interface ContextInvestigationPreview {
+  project_id: string;
+  snapshot_id: string;
+  selected_files: ContextFilePreview[];
+  total_files: number;
+  graph_edges: number;
+  candidate_files: number;
+  semantic_hits_verified: number;
+  context_chars: number;
+  estimated_tokens: number;
+  selection_method: string;
+  semantic_preview_note: string;
+  ai_calls: 0;
+}
+
+export interface ContextInvestigationReport extends Omit<
+  QuestionInvestigationReport, "selected_files" | "scope"
+> {
+  selected_files: string[];
+  context_files: ContextFilePreview[];
+  evidence_links: {
+    path: string;
+    quote: string;
+    explanation: string;
+    start_line: number;
+    end_line: number;
+    verification_status: "source_quote_verified";
+  }[];
+  gaps: string[];
+  follow_up_questions: string[];
+  graph_edges: number;
+  candidate_files: number;
+  semantic_hits_verified: number;
+  context_chars: number;
+  estimated_tokens: number;
+  selection_method: string;
+  scope: "selected_verified_excerpts_only";
+  completion_calls: number;
+  embedding_query_calls: number;
+  semantic_index_used: boolean;
+}
+
+export const PreviewContextInvestigation = (
+  token: string, projectId: string, question: string, maxFiles: number,
+) => apiClient.post(`projects/${encodeURIComponent(projectId)}/investigation/context/preview`, {
+  headers: { Authorization: `Bearer ${token}` },
+  json: { question, max_files: maxFiles },
+}).json<ContextInvestigationPreview>();
+
+export const RunContextInvestigation = (
+  token: string, projectId: string, question: string, maxFiles: number,
+  snapshotId: string, useSemanticIndex: boolean,
+) => apiClient.post(`projects/${encodeURIComponent(projectId)}/investigation/context/run`, {
+  headers: { Authorization: `Bearer ${token}` },
+  json: {
+    question,
+    max_files: maxFiles,
+    expected_snapshot_id: snapshotId,
+    use_semantic_index: useSemanticIndex,
+  },
+  timeout: 270_000,
+}).json<ContextInvestigationReport>();
+
 export interface CodePatchRequest {
   workspace_root: string;
   relative_path: string;

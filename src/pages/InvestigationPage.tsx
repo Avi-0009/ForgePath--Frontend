@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { HTTPError } from "ky";
 import {
@@ -17,10 +17,10 @@ import {
 import {
   GetProjectInvestigationFiles,
   InvestigateProjectFile,
-  PreviewProjectInvestigation,
-  InvestigateProjectQuestion,
-  type QuestionInvestigationPreview,
-  type QuestionInvestigationReport,
+  PreviewContextInvestigation,
+  RunContextInvestigation,
+  type ContextInvestigationPreview,
+  type ContextInvestigationReport,
   type CodeReviewFileResponse,
   type ReviewFinding,
 } from "../Api/Review";
@@ -77,10 +77,6 @@ const getErrorMessage = async (
       return "Access to this source file is not permitted.";
     }
 
-    if (error.response.status === 502) {
-      return "The AI provider could not complete this review.";
-    }
-
     try {
       const payload: unknown = await error.response.clone().json();
 
@@ -94,6 +90,10 @@ const getErrorMessage = async (
       }
     } catch {
       // Keep the fallback message.
+    }
+
+    if (error.response.status === 502) {
+      return "The AI provider returned an invalid response or failed to complete this review. No unsupported findings were accepted.";
     }
 
     return `${fallback} (HTTP ${error.response.status}).`;
@@ -153,10 +153,12 @@ const InvestigationPage = () => {
   const [reviewing, setReviewing] = useState(false);
   const [question, setQuestion] = useState("");
   const [maxFiles, setMaxFiles] = useState(5);
-  const [preview, setPreview] = useState<QuestionInvestigationPreview | null>(null);
-  const [questionReport, setQuestionReport] = useState<QuestionInvestigationReport | null>(null);
+  const [useSemanticIndex, setUseSemanticIndex] = useState(false);
+  const [preview, setPreview] = useState<ContextInvestigationPreview | null>(null);
+  const [questionReport, setQuestionReport] = useState<ContextInvestigationReport | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [investigatingQuestion, setInvestigatingQuestion] = useState(false);
+  const investigationVersion = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -254,14 +256,19 @@ const InvestigationPage = () => {
     setError(null);
   };
 
+  const invalidateContext = () => {
+    investigationVersion.current += 1;
+    setPreview(null);
+    setQuestionReport(null);
+  };
+
   const handleSourceChange = (root: string) => {
     setSourceRoot(root);
     setSources([]);
     setFileKey("");
     setFileSearch("");
     resetReview();
-    setPreview(null);
-    setQuestionReport(null);
+    invalidateContext();
   };
 
   const handleFileChange = (key: string) => {
@@ -275,38 +282,44 @@ const InvestigationPage = () => {
     setSources([]);
     setFileKey("");
     resetReview();
-    setPreview(null);
-    setQuestionReport(null);
+    invalidateContext();
     setReloadKey((value) => value + 1);
   };
 
   const previewQuestion = async () => {
     if (!token || !sourceRoot || question.trim().length < 3) return;
+    const version = ++investigationVersion.current;
     setPreviewing(true);
     setError(null);
     setPreview(null);
     setQuestionReport(null);
     try {
       const result = await withAuthentication(token, (accessToken) =>
-        PreviewProjectInvestigation(accessToken, sourceRoot, question.trim(), maxFiles));
-      setPreview(result);
+        PreviewContextInvestigation(accessToken, sourceRoot, question.trim(), maxFiles));
+      if (version === investigationVersion.current) setPreview(result);
     } catch (cause) {
-      setError(await getErrorMessage(cause, "Could not select relevant files"));
+      const message = await getErrorMessage(cause, "Could not select relevant files");
+      if (version === investigationVersion.current) setError(message);
     } finally {
       setPreviewing(false);
     }
   };
 
   const investigateQuestion = async () => {
-    if (!token || !sourceRoot || !preview || investigatingQuestion) return;
+    if (!token || !sourceRoot || !preview || preview.project_id !== sourceRoot || investigatingQuestion) return;
+    const version = investigationVersion.current;
     setInvestigatingQuestion(true);
     setError(null);
     try {
       const result = await withAuthentication(token, (accessToken) =>
-        InvestigateProjectQuestion(accessToken, sourceRoot, question.trim(), maxFiles, preview.snapshot_id));
-      setQuestionReport(result);
+        RunContextInvestigation(
+          accessToken, sourceRoot, question.trim(), maxFiles,
+          preview.snapshot_id, useSemanticIndex,
+        ));
+      if (version === investigationVersion.current) setQuestionReport(result);
     } catch (cause) {
-      setError(await getErrorMessage(cause, "Investigation failed"));
+      const message = await getErrorMessage(cause, "Investigation failed");
+      if (version === investigationVersion.current) setError(message);
     } finally {
       setInvestigatingQuestion(false);
     }
@@ -361,9 +374,9 @@ const InvestigationPage = () => {
 
         <section className={panelClass}>
           <div className="border-b border-app-line px-4 py-4 sm:px-5">
-            <h2 className="text-base font-bold">Investigate a problem across your project</h2>
+            <h2 className="text-base font-bold">Context-aware investigation</h2>
             <p className="mt-1 text-xs text-app-muted">
-              Describe what you want to find. ForgePath ranks likely files locally first—no AI call until you confirm.
+              Ask a question about the whole project. ForgePath traces relevant source files and their import relationships before asking AI. Preview is free; running requires confirmation.
             </p>
           </div>
           <div className="space-y-4 p-4 sm:p-5">
@@ -385,7 +398,7 @@ const InvestigationPage = () => {
               What should ForgePath investigate?
               <textarea
                 value={question}
-                onChange={(event) => { setQuestion(event.target.value); setPreview(null); setQuestionReport(null); }}
+                onChange={(event) => { setQuestion(event.target.value); invalidateContext(); }}
                 placeholder="Example: Why are expired access tokens causing failures in task creation? Check the API route, auth handling and relevant tests."
                 maxLength={2000}
                 rows={3}
@@ -398,12 +411,22 @@ const InvestigationPage = () => {
               Files to inspect (max 10)
                 <select
                   value={maxFiles}
-                  onChange={(event) => { setMaxFiles(Number(event.target.value)); setPreview(null); setQuestionReport(null); }}
+                  onChange={(event) => { setMaxFiles(Number(event.target.value)); invalidateContext(); }}
                   disabled={investigatingQuestion}
                   className="mt-2 block rounded-lg border border-app-line bg-app-panel2 p-2.5 text-xs"
                 >
-                  {[3, 5, 8, 10].map((count) => <option key={count} value={count}>{count}</option>)}
+                  {[3, 5, 6, 8, 10].map((count) => <option key={count} value={count}>{count}</option>)}
                 </select>
+              </label>
+              <label className="flex items-center gap-2 rounded-lg border border-app-line bg-app-panel2 px-3 py-2.5 text-xs text-app-text">
+                <input
+                  type="checkbox"
+                  checked={useSemanticIndex}
+                  onChange={(event) => { setUseSemanticIndex(event.target.checked); invalidateContext(); }}
+                  disabled={investigatingQuestion || previewing}
+                  className="accent-app-accent"
+                />
+                Include semantic vector matches (+1 embedding query)
               </label>
               <button
                 type="button"
@@ -414,16 +437,26 @@ const InvestigationPage = () => {
                 {previewing ? "Finding relevant files..." : "Find relevant files (free)"}
               </button>
             </div>
-            {preview && (
+            {preview && preview.project_id === sourceRoot && (
               <div className="rounded-lg border border-app-line bg-app-panel2 p-4">
                 <p className="text-xs font-bold">
                   Selected {preview.selected_files.length} of {preview.total_files} snapshot files
                 </p>
                 <p className="mt-1 text-2xs text-app-muted">
-                  Ranked using source names, declarations, terms, and imports. These files are candidates, not proof they contain the problem.
+                  {preview.candidate_files} relevant candidates · {preview.graph_edges} import links in project · ~{preview.estimated_tokens.toLocaleString()} source tokens · {preview.ai_calls} AI calls so far.
                 </p>
-                <ul className="mt-3 space-y-1 font-mono text-2xs text-app-muted">
-                  {preview.selected_files.map((item) => <li key={item.path}>{item.path}</li>)}
+                <p className="mt-2 text-2xs text-app-muted">
+                  {useSemanticIndex
+                    ? "Semantic retrieval will run after you confirm. It can change the final file selection; the current preview uses local relevance and source links."
+                    : "Selection uses local relevance, imports, and callers. Candidates are not proof of a problem."}
+                </p>
+                <ul className="mt-3 space-y-2 text-2xs text-app-muted">
+                  {preview.selected_files.map((item) => (
+                    <li key={item.path} className="rounded-md border border-app-line/60 bg-app-bg p-2.5">
+                      <p className="wrap-break-words font-mono text-app-text">{item.path} · L{item.start_line}–{item.end_line}</p>
+                      <p className="mt-1">{item.reason} · {item.excerpt_chars} excerpt characters</p>
+                    </li>
+                  ))}
                 </ul>
                 {preview.selected_files.length === 0 && (
                   <p className="mt-2 text-xs text-app-muted">
@@ -436,18 +469,45 @@ const InvestigationPage = () => {
                   onClick={() => void investigateQuestion()}
                   disabled={investigatingQuestion || preview.selected_files.length === 0}
                 >
-                  {investigatingQuestion ? "Investigating..." : "Run multi-file investigation (1 AI call)"}
+                  {investigatingQuestion
+                    ? "Investigating..."
+                    : `Run context investigation (${useSemanticIndex ? "1 completion + 1 embedding query" : "1 AI call"})`}
                 </button>
               </div>
             )}
-            {questionReport && (
+            {questionReport && questionReport.project_id === sourceRoot && (
               <div className="space-y-3 rounded-lg border border-app-line bg-app-panel2 p-4">
                 <h3 className="text-sm font-bold">Investigation results</h3>
                 <p className="text-2xs text-app-muted">
-                  AI analyzed excerpts from {questionReport.selected_files.length} of {questionReport.total_files} files.
-                  Findings are unverified. Other project files were not examined.
+                  AI examined verified excerpts from {questionReport.selected_files.length} of {questionReport.total_files} project files.
+                  {` ${questionReport.completion_calls} completion call${questionReport.completion_calls === 1 ? "" : "s"}`}
+                  {questionReport.embedding_query_calls > 0 && " · 1 embedding query"}.
+                  Findings are unverified; unselected files were not read by the AI.
                 </p>
                 <p className="whitespace-pre-wrap text-xs text-app-text">{questionReport.summary}</p>
+                {questionReport.context_files.length > 0 && (
+                  <details className="rounded-md border border-app-line p-3 text-2xs">
+                    <summary className="cursor-pointer font-semibold">Files actually read by AI ({questionReport.context_files.length})</summary>
+                    <ul className="mt-2 space-y-1 font-mono text-app-muted">
+                      {questionReport.context_files.map((item) => (
+                        <li key={item.path} className="wrap-break-words">{item.path} · L{item.start_line}–{item.end_line} · {item.reason}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+                {questionReport.evidence_links.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold">Verified source quotes ({questionReport.evidence_links.length})</h4>
+                    {questionReport.evidence_links.map((item, index) => (
+                      <article key={`${item.path}-${index}`} className="rounded-lg border border-status-blue-line bg-status-blue-bg/20 p-3">
+                        <p className="wrap-break-words font-mono text-2xs text-status-blue">{item.path} · L{item.start_line}–{item.end_line}</p>
+                        <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap wrap-break-words text-2xs">{item.quote}</pre>
+                        <p className="mt-2 text-xs text-app-muted">{item.explanation}</p>
+                        <p className="mt-1 text-micro text-status-blue">Quote matched the saved snapshot excerpt; interpretation remains unverified.</p>
+                      </article>
+                    ))}
+                  </div>
+                )}
                 {questionReport.findings.map((finding, index) => (
                   <article key={`${finding.path}-${index}`} className="rounded-lg border border-app-line p-3">
                     <p className="text-xs font-semibold">{finding.title} · {finding.severity}</p>
@@ -456,6 +516,30 @@ const InvestigationPage = () => {
                     <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-app-bg p-2 text-2xs">{finding.evidence}</pre>
                   </article>
                 ))}
+                {questionReport.findings.length === 0 && (
+                  <p className="rounded-md border border-app-line p-3 text-xs text-app-muted">No source-supported issues were proposed. This does not mean the codebase is free of issues.</p>
+                )}
+                {questionReport.gaps.length > 0 && (
+                  <div className="rounded-md border border-status-amber-line bg-status-amber-bg p-3">
+                    <p className="text-xs font-bold text-status-amber">What remains unknown</p>
+                    <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-app-muted">
+                      {questionReport.gaps.map((gap, index) => <li key={index}>{gap}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {questionReport.follow_up_questions.length > 0 && (
+                  <div className="rounded-md border border-app-line p-3">
+                    <p className="text-xs font-bold">Suggested follow-up investigations</p>
+                    <ul className="mt-2 space-y-2 text-xs text-app-muted">
+                      {questionReport.follow_up_questions.map((next, index) => (
+                        <li key={index} className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="min-w-0 flex-1">{next}</span>
+                          <button type="button" className="btn" onClick={() => { setQuestion(next); invalidateContext(); }}>Use question</button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
