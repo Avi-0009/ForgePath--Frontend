@@ -1,4 +1,5 @@
 import { apiClient } from "./Auth";
+import { requestWithTokenRefresh } from "./AuthenticatedRequest";
 import type { ContextFilePreview, ContextInvestigationReport } from "./Review";
 
 export interface ProjectConversationSummary {
@@ -61,46 +62,58 @@ const base = (projectId: string): string =>
 const authHeaders = (token: string) => ({ Authorization: `Bearer ${token}` });
 
 export const ListProjectConversations = (token: string, projectId: string) =>
-  apiClient.get(base(projectId), { headers: authHeaders(token) })
-    .json<ProjectConversationList>();
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient.get(base(projectId), { headers: authHeaders(accessToken) })
+      .json<ProjectConversationList>(),
+  );
 
 export const CreateProjectConversation = (token: string, projectId: string, snapshotId: string) =>
-  apiClient.post(base(projectId), {
-    headers: authHeaders(token),
-    json: { expected_snapshot_id: snapshotId },
-  }).json<ProjectConversationThread>();
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient.post(base(projectId), {
+      headers: authHeaders(accessToken),
+      json: { expected_snapshot_id: snapshotId },
+    }).json<ProjectConversationThread>(),
+  );
 
 export const GetProjectConversation = (token: string, projectId: string, threadId: string) =>
-  apiClient.get(`${base(projectId)}/${encodeURIComponent(threadId)}`, {
-    headers: authHeaders(token),
-  }).json<ProjectConversationThread>();
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient.get(`${base(projectId)}/${encodeURIComponent(threadId)}`, {
+      headers: authHeaders(accessToken),
+    }).json<ProjectConversationThread>(),
+  );
 
 export const DeleteProjectConversation = (token: string, projectId: string, threadId: string) =>
-  apiClient.delete(`${base(projectId)}/${encodeURIComponent(threadId)}`, {
-    headers: authHeaders(token),
+  requestWithTokenRefresh(token, async (accessToken): Promise<void> => {
+    await apiClient.delete(`${base(projectId)}/${encodeURIComponent(threadId)}`, {
+      headers: authHeaders(accessToken),
+    });
   });
 
 export const PreviewProjectConversation = (
   token: string, projectId: string, threadId: string,
   question: string, maxFiles: number, revision: number,
-) => apiClient.post(`${base(projectId)}/${encodeURIComponent(threadId)}/preview`, {
-  headers: authHeaders(token),
-  json: { question, max_files: maxFiles, expected_revision: revision },
-  timeout: 60_000,
-}).json<ProjectConversationPreview>();
+) => requestWithTokenRefresh(token, (accessToken) =>
+  apiClient.post(`${base(projectId)}/${encodeURIComponent(threadId)}/preview`, {
+    headers: authHeaders(accessToken),
+    json: { question, max_files: maxFiles, expected_revision: revision },
+    timeout: 60_000,
+  }).json<ProjectConversationPreview>(),
+);
 
 export const RunProjectConversation = (
   token: string, projectId: string, threadId: string,
   question: string, maxFiles: number, revision: number,
   snapshotId: string, useSemanticIndex: boolean,
-) => apiClient.post(`${base(projectId)}/${encodeURIComponent(threadId)}/message`, {
-  headers: authHeaders(token),
-  json: {
-    question,
-    max_files: maxFiles,
-    expected_revision: revision,
-    expected_snapshot_id: snapshotId,
-    use_semantic_index: useSemanticIndex,
-  },
-  timeout: 270_000,
-}).json<ProjectConversationRunResult>();
+) => requestWithTokenRefresh(token, (accessToken) =>
+  apiClient.post(`${base(projectId)}/${encodeURIComponent(threadId)}/message`, {
+    headers: authHeaders(accessToken),
+    json: {
+      question,
+      max_files: maxFiles,
+      expected_revision: revision,
+      expected_snapshot_id: snapshotId,
+      use_semantic_index: useSemanticIndex,
+    },
+    timeout: 270_000,
+  }).json<ProjectConversationRunResult>(),
+);

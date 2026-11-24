@@ -1,4 +1,5 @@
 import { apiClient } from "./Auth";
+import { requestWithTokenRefresh } from "./AuthenticatedRequest";
 
 export type SnapshotFile = {
   relative_path: string;
@@ -18,13 +19,13 @@ export type ProjectListResponse = {
 };
 
 export type SnapshotReceipt = {
-  asset_paths: string[];
   project_id: string;
   snapshot_id: string;
   file_count: number;
   total_bytes: number;
   sha256: string;
   status: string;
+  index_cleanup_pending: boolean;
 };
 
 export type ProjectFinding = {
@@ -54,55 +55,54 @@ export type ProjectReview = {
 const headers = (token: string) => ({ Authorization: `Bearer ${token}` });
 
 export const createProject = (token: string, name: string) =>
-  apiClient.post("projects", {
-    headers: headers(token),
-    json: { name },
-  }).json<ActivatedProject>();
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient.post("projects", {
+      headers: headers(accessToken),
+      json: { name },
+    }).json<ActivatedProject>(),
+  );
 
 export const getProject = (token: string, projectId: string) =>
-  apiClient.get(`projects/${projectId}`, {
-    headers: headers(token),
-  }).json<ActivatedProject>();
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient.get(`projects/${encodeURIComponent(projectId)}`, {
+      headers: headers(accessToken),
+    }).json<ActivatedProject>(),
+  );
 
 export const listProjects = (token: string) =>
-  apiClient
-    .get("projects", {
-      headers: headers(token),
-      searchParams: {
-        limit: 100,
-        offset: 0,
-      },
-    })
-    .json<ProjectListResponse>();
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient.get("projects", {
+      headers: headers(accessToken),
+      searchParams: { limit: 100, offset: 0 },
+    }).json<ProjectListResponse>(),
+  );
 
 export const uploadProjectSnapshot = (
   token: string,
   projectId: string,
   files: SnapshotFile[],
   assetPaths: string[] = [],
-) => apiClient.put(`projects/${projectId}/snapshot`, {
-  headers: headers(token),
-  json: {
-    files,
-    asset_paths: assetPaths,
-  },
-  timeout: 120_000,
-}).json<SnapshotReceipt>();
+) => requestWithTokenRefresh(token, (accessToken) =>
+  apiClient.put(`projects/${encodeURIComponent(projectId)}/snapshot`, {
+    headers: headers(accessToken),
+    json: { files, asset_paths: assetPaths },
+    timeout: 120_000,
+  }).json<SnapshotReceipt>(),
+);
 
 export const startProjectReview = (token: string, projectId: string) =>
-  apiClient.post(`projects/${projectId}/reviews`, {
-    headers: headers(token),
-  }).json<ProjectReview>();
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient.post(`projects/${encodeURIComponent(projectId)}/reviews`, {
+      headers: headers(accessToken),
+    }).json<ProjectReview>(),
+  );
 
-export const getLatestProjectReview = (
-  token: string,
-  projectId: string,
-) =>
-  apiClient
-    .get(`projects/${projectId}/reviews/latest`, {
-      headers: headers(token),
-    })
-    .json<ProjectReview | null>();
+export const getLatestProjectReview = (token: string, projectId: string) =>
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient.get(`projects/${encodeURIComponent(projectId)}/reviews/latest`, {
+      headers: headers(accessToken),
+    }).json<ProjectReview | null>(),
+  );
 
 export const activeProjectStorageKey = (userId: string) =>
   `forgepath:active-project:${userId}`;
