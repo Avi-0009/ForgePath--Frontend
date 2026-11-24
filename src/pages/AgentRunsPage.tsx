@@ -283,12 +283,12 @@ export default function AgentRunsPage() {
                     {projectReview.status}
                   </span>
                 )}
-                <Link to="/repositories" className="btn text-xs">
+                <Link to="/investigation" className="btn text-xs">
                   View review
                 </Link>
               </div>
             </div>
-            {projectReview?.status === "failed" && (
+            {(projectReview?.status === "failed" || projectReview?.status === "interrupted") && (
               <p className="mt-3 text-xs text-status-amber">
                 {projectReview.error_message ?? "Review failed."}
               </p>

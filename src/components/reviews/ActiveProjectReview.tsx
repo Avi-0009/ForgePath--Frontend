@@ -13,6 +13,7 @@ import {
 
 import {
   getLatestProjectReview,
+  startProjectReview,
   getProject,
   type ActivatedProject,
   type ProjectReview,
@@ -47,6 +48,22 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
       : null;
 
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
+
+  const retryReview = async () => {
+    if (!token || !projectId || retrying) return;
+    if (!window.confirm("Start a new review of the current saved snapshot? This can incur additional AI charges.")) return;
+    setRetrying(true);
+    try {
+      const result = await startProjectReview(token, projectId);
+      setReview(result);
+      setErrorData(null);
+    } catch {
+      setErrorData({ projectId, message: "Could not restart the review. Another review may still be active. Refresh and try again." });
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   const [errorData, setErrorData] = useState<{
     projectId: string;
@@ -335,6 +352,13 @@ const ActiveProjectReview = ({ detailed = false }: Props) => {
         >
           {review.error_message}
         </p>
+      )}
+
+      {(review?.status === "interrupted" || review?.status === "failed") && (
+        <button type="button" className="btn mt-3 text-xs" disabled={retrying}
+          onClick={() => void retryReview()}>
+          {retrying ? "Starting review…" : "Retry review (AI charges may apply)"}
+        </button>
       )}
 
       {review && (

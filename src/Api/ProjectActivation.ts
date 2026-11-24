@@ -40,7 +40,7 @@ export type ProjectReview = {
   id: string;
   project_id: string;
   snapshot_id: string;
-  status: "queued" | "running" | "completed" | "partial" | "failed";
+  status: "queued" | "running" | "completed" | "partial" | "failed" | "interrupted";
   files_scanned: number;
   files_reviewed: number;
   ai_calls: number;
