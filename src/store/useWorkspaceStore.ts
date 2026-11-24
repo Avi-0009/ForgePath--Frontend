@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import type { FileNode } from '../Api/Workspace';
 import type { CodeReviewFileResponse, CodePatchResponse, ReviewFinding } from '../Api/Review';
 
 interface WorkspaceState {
+  sessionVersion: number;
   treeData: FileNode | null;
   selectedFile: FileNode | null;
   reviewResult: CodeReviewFileResponse | null;
@@ -20,9 +20,16 @@ interface WorkspaceState {
   clearAllState: () => void;
 }
 
+// Discard the legacy, unowned cache. Private source results now live in memory only.
+try {
+  sessionStorage.removeItem('forgepath-workspace');
+} catch {
+  // Storage may be unavailable; never hydrate private data from it.
+}
+
 export const useWorkspaceStore = create<WorkspaceState>()(
-  persist(
     (set) => ({
+      sessionVersion: 0,
       treeData: null,
       selectedFile: null,
       reviewResult: null,
@@ -45,17 +52,19 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         patchResult: null, 
         selectedFinding: null 
       }),
-      clearAllState: () => set({ 
+      clearAllState: () => set((state) => ({
+        sessionVersion: state.sessionVersion + 1,
         treeData: null,
         selectedFile: null, 
         reviewResult: null, 
         patchResult: null, 
         selectedFinding: null 
-      }),
+      })),
     }),
-    {
-      name: 'forgepath-workspace',
-      storage: createJSONStorage(() => sessionStorage),
-    }
-  )
 );
+
+/** Capture before awaiting a request; logout/account changes invalidate its result. */
+export const createWorkspaceRequestGuard = () => {
+  const version = useWorkspaceStore.getState().sessionVersion;
+  return () => useWorkspaceStore.getState().sessionVersion === version;
+};

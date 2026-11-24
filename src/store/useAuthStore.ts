@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useWorkspaceStore } from "./useWorkspaceStore";
+import toast from "react-hot-toast";
 
 export interface User {
   id: string;
@@ -22,24 +24,32 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
 
-      login: (user, token) =>
+      login: (user, token) => {
+        if (get().user?.id !== user.id) {
+          toast.remove();
+          useWorkspaceStore.getState().clearAllState();
+        }
         set({
           user,
           token,
           isAuthenticated: true,
-        }),
+        });
+      },
 
-      logout: () =>
+      logout: () => {
+        toast.remove();
+        useWorkspaceStore.getState().clearAllState();
         set({
           user: null,
           token: null,
           isAuthenticated: false,
-        }),
+        });
+      },
         
       updateUser: (data) => 
         set((state) => ({

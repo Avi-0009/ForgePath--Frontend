@@ -42,7 +42,7 @@ const RequireAuth = () => {
   const user = useAuthStore((state) => state.user);
 
   return isAuthenticated && token && user
-    ? <Outlet />
+    ? <AppLayout key={user.id} />
     : <Navigate to="/auth" replace />;
 };
 
@@ -56,7 +56,7 @@ const App = () => (
       />
     </Route>
 
-    <Route element={<AppLayout />}>
+    <Route element={<RequireAuth />}>
       <Route path="/" element={<HomePage />} />
       <Route path="/tasks" element={<TasksPage />} />
       <Route
@@ -87,9 +87,7 @@ const App = () => (
         element={<WorkspacePage />}
       />
 
-      <Route element={<RequireAuth />}>
-        <Route path="/profile" element={<ProfilePage />} />
-      </Route>
+      <Route path="/profile" element={<ProfilePage />} />
     </Route>
   </Routes>
 );

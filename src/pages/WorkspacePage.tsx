@@ -3,7 +3,7 @@ import toast from "react-hot-toast";
 import { HTTPError } from "ky";
 
 import { useAuthStore } from "../store/useAuthStore";
-import { useWorkspaceStore } from "../store/useWorkspaceStore";
+import { createWorkspaceRequestGuard, useWorkspaceStore } from "../store/useWorkspaceStore";
 import { GetWorkspaceTree } from "../Api/Workspace";
 import type { FileNode } from "../Api/Workspace";
 
@@ -61,6 +61,7 @@ const WorkspacePage = () => {
 
   useEffect(() => {
     let cancelled = false;
+    const isCurrentSession = createWorkspaceRequestGuard();
 
     if (
       reloadKey === 0 &&
@@ -82,15 +83,15 @@ const WorkspacePage = () => {
 
       try {
         const data = await GetWorkspaceTree(token);
-        if (!cancelled) setTreeData(data);
+        if (!cancelled && isCurrentSession()) setTreeData(data);
       } catch (error) {
         console.error("Failed to load workspace tree:", error);
-        if (!cancelled) {
+        if (!cancelled && isCurrentSession()) {
           setTreeData(null);
           setTreeError("Couldn't load your workspaces. Check your backend and login session.");
         }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled && isCurrentSession()) setIsLoading(false);
       }
     };
 
@@ -116,6 +117,7 @@ const WorkspacePage = () => {
     }
 
     const loadingToast = toast.loading(`Analyzing ${selectedFile.name}...`);
+    const isCurrentSession = createWorkspaceRequestGuard();
     setIsReviewing(true);
 
     try {
@@ -125,14 +127,17 @@ const WorkspacePage = () => {
         review_mode: "general",
       });
 
+      if (!isCurrentSession()) return;
       setReviewResult(response);
       setPatchResult(null);
       toast.success("Code review completed.", { id: loadingToast });
     } catch (error: unknown) {
       const message = await getErrorMessage(error, "Code review failed");
+      if (!isCurrentSession()) return;
       toast.error(message, { id: loadingToast, duration: 7000 });
     } finally {
-      setIsReviewing(false);
+      if (isCurrentSession()) setIsReviewing(false);
+      else toast.dismiss(loadingToast);
     }
   };
 
@@ -152,6 +157,7 @@ const WorkspacePage = () => {
     setIsGeneratingPatch(true);
     setSelectedFinding(finding);
     const loadingToast = toast.loading("Generating proposed code fix...");
+    const isCurrentSession = createWorkspaceRequestGuard();
 
     try {
       const response = await GenerateCodePatch(token, {
@@ -164,14 +170,17 @@ const WorkspacePage = () => {
         suggested_fix: finding.suggested_fix,
       });
 
+      if (!isCurrentSession()) return;
       setPatchResult(response);
       toast.success("Patch proposal generated.", { id: loadingToast });
     } catch (error: unknown) {
       const message = await getErrorMessage(error, "Patch generation failed");
+      if (!isCurrentSession()) return;
       toast.error(message, { id: loadingToast, duration: 7000 });
       setSelectedFinding(null);
     } finally {
-      setIsGeneratingPatch(false);
+      if (isCurrentSession()) setIsGeneratingPatch(false);
+      else toast.dismiss(loadingToast);
     }
   };
 
@@ -186,6 +195,7 @@ const WorkspacePage = () => {
 
     setIsApplying(true);
     const loadingToast = toast.loading("Applying patch and creating backup...");
+    const isCurrentSession = createWorkspaceRequestGuard();
 
     try {
       const response = await ApplyCodePatch(token, {
@@ -197,6 +207,7 @@ const WorkspacePage = () => {
         approval: "apply",
       });
 
+      if (!isCurrentSession()) return;
       if (!response.patch_applied) throw new Error("The backend did not confirm patch application.");
 
       toast.success(`Patch applied! Backup ID: ${response.backup_id}`, { id: loadingToast, duration: 8000 });
@@ -204,9 +215,11 @@ const WorkspacePage = () => {
       setReloadKey((key) => key + 1);
     } catch (error: unknown) {
       const message = await getErrorMessage(error, "Patch application failed");
+      if (!isCurrentSession()) return;
       toast.error(message, { id: loadingToast, duration: 8000 });
     } finally {
-      setIsApplying(false);
+      if (isCurrentSession()) setIsApplying(false);
+      else toast.dismiss(loadingToast);
     }
   };
 
