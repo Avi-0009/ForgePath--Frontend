@@ -21,6 +21,11 @@ import {
 } from "../../Api/Tasks";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useApiActivity } from "../../store/useApiActivity";
+import {
+  getLatestProjectReview,
+  type ProjectReview,
+} from "../../Api/ProjectActivation";
+import { useActiveProjectId } from "../../store/useActiveProjectId";
 
 interface AppHeaderProps {
   onOpenMenu: () => void;
@@ -149,7 +154,74 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
   const isAuthenticated = useAuthStore(
     (state) => state.isAuthenticated,
   );
+
   const apiActivity = useApiActivity();
+  const activeProjectId = useActiveProjectId();
+
+  const [reviewActivity, setReviewActivity] = useState<{
+    projectId: string;
+    review: ProjectReview | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!token || !isAuthenticated || !activeProjectId) {
+      return;
+    }
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const pollReview = async () => {
+      try {
+        const review = await getLatestProjectReview(
+          token,
+          activeProjectId,
+        );
+
+        if (!cancelled) {
+          setReviewActivity({
+            projectId: activeProjectId,
+            review,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setReviewActivity({
+            projectId: activeProjectId,
+            review: null,
+          });
+        }
+      } finally {
+        if (!cancelled) {
+          timer = setTimeout(() => void pollReview(), 4000);
+        }
+      }
+    };
+
+    void pollReview();
+
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) clearTimeout(timer);
+    };
+  }, [token, isAuthenticated, activeProjectId]);
+
+  const activeReview =
+    token &&
+    isAuthenticated &&
+    reviewActivity?.projectId === activeProjectId
+      ? reviewActivity.review
+      : null;
+
+  const reviewLabel =
+    activeReview?.status === "queued"
+      ? "Review queued"
+      : activeReview?.status === "running"
+        ? `Reviewing project code (${activeReview.ai_calls}/${activeReview.max_ai_calls} calls)`
+        : null;
+
+  const statusLabel = apiActivity?.label ?? reviewLabel;
+  const isWorking = statusLabel !== null;
 
   const [openPanel, setOpenPanel] = useState<Panel>(null);
   const [pending, setPending] = useState<TaskHistoryItem[]>([]);
@@ -291,9 +363,13 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
           role="status"
           aria-live="polite"
           aria-atomic="true"
-          title={apiActivity ? `ForgePath is ${apiActivity.label.toLowerCase()}` : "ForgePath is ready"}
+          title={
+            statusLabel
+              ? `ForgePath: ${statusLabel}`
+              : "ForgePath is ready"
+          }
           className={`flex h-8 max-w-[min(15rem,45vw)] shrink-0 items-center gap-2 overflow-hidden rounded-lg border px-2.5 text-2xs transition-all duration-300 sm:px-3 ${
-            apiActivity
+            isWorking
               ? "border-app-accent/50 bg-app-accent/10 text-app-accent shadow-[0_0_20px_rgba(193,240,107,0.16)]"
               : "border-app-line bg-app-panel2 text-app-muted"
           }`}
@@ -301,17 +377,25 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
           <span
             aria-hidden="true"
             className={`relative flex h-2 w-2 shrink-0 rounded-full bg-app-accent ${
-              apiActivity ? "shadow-[0_0_12px_rgba(193,240,107,0.9)] motion-safe:animate-pulse" : "opacity-65"
+              isWorking
+                ? "shadow-[0_0_12px_rgba(193,240,107,0.9)] motion-safe:animate-pulse"
+                : "opacity-65"
             }`}
           />
+
           <span
             className="relative top-px truncate whitespace-nowrap"
-            key={apiActivity?.id ?? "idle"}
+            key={apiActivity?.id ?? statusLabel ?? "idle"}
           >
-            {apiActivity?.label ?? "Ready"}
+            {statusLabel ?? "Ready"}
           </span>
-          {apiActivity && (
-            <LoaderCircle size={12} aria-hidden="true" className="shrink-0 motion-safe:animate-spin" />
+
+          {isWorking && (
+            <LoaderCircle
+              size={12}
+              aria-hidden="true"
+              className="shrink-0 motion-safe:animate-spin"
+            />
           )}
         </div>
 
