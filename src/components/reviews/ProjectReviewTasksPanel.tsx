@@ -32,6 +32,7 @@ const ProjectReviewTasksPanel = () => {
   const token = useAuthStore((state) => state.token);
   const userId = useAuthStore((state) => state.user?.id);
   const projectId = useActiveProjectId();
+  const [showHistory, setShowHistory] = useState(false);
 
   const [taskData, setTaskData] = useState<{
     userId: string;
@@ -68,7 +69,6 @@ const ProjectReviewTasksPanel = () => {
       : "";
 
   const [reload, setReload] = useState(0);
-  const [showHistory, setShowHistory] = useState(false);
 
 
   useEffect(() => {
