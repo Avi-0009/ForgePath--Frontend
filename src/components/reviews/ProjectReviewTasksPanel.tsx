@@ -3,8 +3,10 @@ import { Link } from "react-router-dom";
 
 import {
   CheckCircle2,
+  Download,
   FileText,
   GitCompareArrows,
+  History,
   ListTodo,
   LoaderCircle,
   XCircle,
@@ -14,6 +16,7 @@ import {
   createProjectReviewTaskPatch,
   createProjectReviewTaskPlan,
   decideProjectReviewTaskPatch,
+  downloadProjectReviewTaskPatch,
   decideProjectReviewTask,
   getProjectReviewTasks,
   type ProjectReviewTask,
@@ -36,12 +39,14 @@ const ProjectReviewTasksPanel = () => {
     items: ProjectReviewTask[];
     nextOffset: number;
     hasMore: boolean;
+    includeStale: boolean;
   } | null>(null);
 
   const tasks =
     token &&
     taskData?.userId === userId &&
-    taskData?.projectId === projectId
+    taskData?.projectId === projectId &&
+    taskData?.includeStale === showHistory
       ? taskData.items
       : [];
 
@@ -63,6 +68,7 @@ const ProjectReviewTasksPanel = () => {
       : "";
 
   const [reload, setReload] = useState(0);
+  const [showHistory, setShowHistory] = useState(false);
 
 
   useEffect(() => {
@@ -77,7 +83,8 @@ const ProjectReviewTasksPanel = () => {
       token,
       projectId,
       0,
-      TASK_PAGE_SIZE
+      TASK_PAGE_SIZE,
+      showHistory,
     )
       .then((response) => {
         if (
@@ -91,6 +98,7 @@ const ProjectReviewTasksPanel = () => {
             nextOffset: response.items.length,
             hasMore:
               response.items.length === TASK_PAGE_SIZE,
+            includeStale: showHistory,
           });
 
           setErrorData(null);
@@ -117,7 +125,7 @@ const ProjectReviewTasksPanel = () => {
       cancelled = true;
       listGeneration.current += 1;
     };
-  }, [token, userId, projectId, reload]);
+  }, [token, userId, projectId, reload, showHistory]);
 
   const loadMore = async () => {
     if (
@@ -128,7 +136,8 @@ const ProjectReviewTasksPanel = () => {
       loadingMore ||
       !taskData?.hasMore ||
       taskData.userId !== userId ||
-      taskData.projectId !== projectId
+      taskData.projectId !== projectId ||
+      taskData.includeStale !== showHistory
     ) {
       return;
     }
@@ -144,7 +153,8 @@ const ProjectReviewTasksPanel = () => {
         token,
         projectId,
         offset,
-        TASK_PAGE_SIZE
+        TASK_PAGE_SIZE,
+        showHistory,
       );
 
       if (generation !== listGeneration.current) {
@@ -155,6 +165,7 @@ const ProjectReviewTasksPanel = () => {
         if (
           previous?.userId !== userId ||
           previous.projectId !== projectId ||
+          previous.includeStale !== showHistory ||
           previous.nextOffset !== offset
         ) {
           return previous;
@@ -345,6 +356,39 @@ const ProjectReviewTasksPanel = () => {
     }
   };
 
+  const downloadPatch = async (task: ProjectReviewTask) => {
+    if (!token || !projectId || busyTaskId) {
+      return;
+    }
+
+    setBusyTaskId(task.id);
+    setErrorData(null);
+
+    try {
+      const blob = await downloadProjectReviewTaskPatch(
+        token,
+        projectId,
+        task.id,
+      );
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `forgepath-${task.id}.diff`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+    } catch {
+      setErrorData({
+        projectId,
+        message:
+          "Could not export this proposal. Refresh the project and verify its snapshot.",
+      });
+    } finally {
+      setBusyTaskId(null);
+    }
+  };
+
 
   if (!projectId) {
     return null;
@@ -376,18 +420,34 @@ const ProjectReviewTasksPanel = () => {
           </div>
         </div>
 
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => {
-            setErrorData(null);
-            setLoading(true);
-            setReload((previous) => previous + 1);
-          }}
-          className="btn text-xs disabled:opacity-50"
-        >
-          Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            aria-pressed={showHistory}
+            disabled={loading}
+            onClick={() => {
+              setLoading(true);
+              setShowHistory((previous) => !previous);
+            }}
+            className="btn text-xs disabled:opacity-50"
+          >
+            <History size={14} aria-hidden="true" />
+            {showHistory ? "Current tasks" : "Show history"}
+          </button>
+
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              setErrorData(null);
+              setLoading(true);
+              setReload((previous) => previous + 1);
+            }}
+            className="btn text-xs disabled:opacity-50"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
 
@@ -458,7 +518,9 @@ const ProjectReviewTasksPanel = () => {
 
                 <span className="rounded-md border border-app-line px-2 py-1 text-micro capitalize text-app-muted">
                   {task.status === "proposed"
-                    ? "Needs approval"
+                    ? task.is_current_snapshot
+                      ? "Needs approval"
+                      : "Outdated snapshot"
                     : task.status}
                 </span>
               </div>
@@ -471,7 +533,7 @@ const ProjectReviewTasksPanel = () => {
 
 
               {/* Approval actions */}
-              {task.status === "proposed" && (
+              {task.status === "proposed" && task.is_current_snapshot && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
 
                   <button
@@ -512,7 +574,7 @@ const ProjectReviewTasksPanel = () => {
                 </div>
               )}
 
-              {task.status === "approved" && !task.plan && (
+              {task.status === "approved" && task.is_current_snapshot && !task.plan && (
                 <div className="mt-3">
                   <button
                     type="button"
@@ -590,7 +652,7 @@ const ProjectReviewTasksPanel = () => {
                 </div>
               )}
 
-              {task.plan && !task.patch && (
+              {task.plan && task.is_current_snapshot && !task.patch && (
                 <div className="mt-3">
                   <button
                     type="button"
@@ -653,7 +715,7 @@ const ProjectReviewTasksPanel = () => {
                     <code>{task.patch.diff}</code>
                   </pre>
 
-                  {task.patch_status === "ready" && (
+                  {task.patch_status === "ready" && task.is_current_snapshot && (
                     <div className="flex flex-wrap gap-2 border-t border-app-line p-3">
                       <button
                         type="button"
@@ -680,7 +742,41 @@ const ProjectReviewTasksPanel = () => {
                       </p>
                     </div>
                   )}
+
+                  {task.patch_status === "approved" && task.is_current_snapshot && (
+                    <div className="border-t border-app-line p-3">
+                      <button
+                        type="button"
+                        disabled={busyTaskId !== null}
+                        onClick={() => void downloadPatch(task)}
+                        className="btn btn-primary text-xs disabled:opacity-50"
+                      >
+                        {busyTaskId === task.id ? (
+                          <LoaderCircle
+                            size={14}
+                            className="animate-spin"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <Download size={14} aria-hidden="true" />
+                        )}
+                        {busyTaskId === task.id
+                          ? "Preparing export..."
+                          : "Download approved .diff"}
+                      </button>
+
+                      <p className="mt-2 text-micro text-app-dim">
+                        ForgePath revalidates the snapshot and patch hashes before export.
+                      </p>
+                    </div>
+                  )}
                 </div>
+              )}
+
+              {!task.is_current_snapshot && (
+                <p className="mt-3 rounded-md border border-app-line bg-app-panel px-3 py-2 text-micro text-app-dim">
+                  Historical task from an older snapshot. Actions are disabled.
+                </p>
               )}
 
             </article>

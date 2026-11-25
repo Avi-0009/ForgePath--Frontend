@@ -27,6 +27,7 @@ export type ProjectReviewTask = {
   patch: ProjectTaskPatch | null;
   patch_error: string | null;
   patched_at: string | null;
+  is_current_snapshot: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -74,6 +75,7 @@ export type ProjectTaskPlan = {
 
 export type ProjectReviewTaskList = {
   items: ProjectReviewTask[];
+  current_snapshot_id: string;
   limit: number;
   offset: number;
 };
@@ -86,13 +88,18 @@ export const getProjectReviewTasks = (
   token: string,
   projectId: string,
   offset = 0,
-  limit = 100
+  limit = 100,
+  includeStale = false
 ) =>
   requestWithTokenRefresh(token, (accessToken) =>
     apiClient
       .get(`projects/${projectId}/tasks`, {
         headers: headers(accessToken),
-        searchParams: { limit, offset },
+        searchParams: {
+          limit,
+          offset,
+          include_stale: includeStale,
+        },
       })
       .json<ProjectReviewTaskList>()
   );
@@ -193,3 +200,17 @@ export const decideProjectReviewTaskPatch = (
       .json<ProjectReviewTask>()
   );
 };
+
+export const downloadProjectReviewTaskPatch = (
+  token: string,
+  projectId: string,
+  taskId: string
+) =>
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .get(`projects/${projectId}/tasks/${taskId}/patch/download`, {
+        headers: headers(accessToken),
+        cache: "no-store",
+      })
+      .blob()
+  );
