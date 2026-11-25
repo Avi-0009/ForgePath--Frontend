@@ -5,6 +5,7 @@ export type ProjectReviewTask = {
   id: string;
   project_id: string;
   review_id: string;
+  snapshot_id: string;
   finding_index: number;
   title: string;
   path: string;
@@ -12,8 +13,41 @@ export type ProjectReviewTask = {
   evidence: string;
   explanation: string;
   status: "proposed" | "approved" | "dismissed";
+  planning_status: "not_started" | "planning" | "ready" | "failed";
+  plan: ProjectTaskPlan | null;
+  planning_error: string | null;
+  planned_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type ProjectTaskPlanStep = {
+  step_number: number;
+  title: string;
+  description: string;
+  dependencies: number[];
+  candidate_files_to_inspect: string[];
+  acceptance_criteria: string[];
+  verification_actions: string[];
+};
+
+export type ProjectTaskPlan = {
+  plan_id: string;
+  workspace_root: string;
+  task_summary: string;
+  objective: string;
+  complexity: "low" | "medium" | "high";
+  assumptions: string[];
+  steps: ProjectTaskPlanStep[];
+  risks: Array<{
+    severity: "low" | "medium" | "high";
+    title: string;
+    description: string;
+    mitigation: string;
+  }>;
+  open_questions: string[];
+  overall_verification_strategy: string[];
+  generated_at: string;
 };
 
 export type ProjectReviewTaskList = {
@@ -70,6 +104,24 @@ export const decideProjectReviewTask = (
       .patch(`projects/${projectId}/tasks/${taskId}`, {
         headers: headers(accessToken),
         json: { status: decision },
+      })
+      .json<ProjectReviewTask>()
+  );
+
+export const createProjectReviewTaskPlan = (
+  token: string,
+  projectId: string,
+  task: Pick<ProjectReviewTask, "id" | "snapshot_id">,
+  maxSteps = 10
+) =>
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .post(`projects/${projectId}/tasks/${task.id}/plan`, {
+        headers: headers(accessToken),
+        json: {
+          expected_snapshot_id: task.snapshot_id,
+          max_steps: maxSteps,
+        },
       })
       .json<ProjectReviewTask>()
   );

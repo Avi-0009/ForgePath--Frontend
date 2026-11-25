@@ -3,12 +3,14 @@ import { Link } from "react-router-dom";
 
 import {
   CheckCircle2,
+  FileText,
   ListTodo,
   LoaderCircle,
   XCircle,
 } from "lucide-react";
 
 import {
+  createProjectReviewTaskPlan,
   decideProjectReviewTask,
   getProjectReviewTasks,
   type ProjectReviewTask,
@@ -229,6 +231,42 @@ const ProjectReviewTasksPanel = () => {
     }
   };
 
+  const createPlan = async (task: ProjectReviewTask) => {
+    if (!token || !projectId || busyTaskId) {
+      return;
+    }
+
+    setBusyTaskId(task.id);
+    setErrorData(null);
+
+    try {
+      const updated = await createProjectReviewTaskPlan(
+        token,
+        projectId,
+        task,
+      );
+
+      setTaskData((previous) =>
+        previous?.projectId === projectId
+          ? {
+              ...previous,
+              items: previous.items.map((item) =>
+                item.id === updated.id ? updated : item
+              ),
+            }
+          : previous
+      );
+    } catch {
+      setErrorData({
+        projectId,
+        message:
+          "Could not create this plan. Refresh the project and try again.",
+      });
+    } finally {
+      setBusyTaskId(null);
+    }
+  };
+
 
   if (!projectId) {
     return null;
@@ -360,7 +398,10 @@ const ProjectReviewTasksPanel = () => {
 
                   <button
                     type="button"
-                    disabled={busyTaskId !== null}
+                    disabled={
+                      busyTaskId !== null ||
+                      task.planning_status === "planning"
+                    }
                     onClick={() =>
                       void decide(task, "approved")
                     }
@@ -390,6 +431,84 @@ const ProjectReviewTasksPanel = () => {
                     Dismiss
                   </button>
 
+                </div>
+              )}
+
+              {task.status === "approved" && !task.plan && (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    disabled={busyTaskId !== null}
+                    onClick={() => void createPlan(task)}
+                    className="btn btn-primary text-xs disabled:opacity-50"
+                  >
+                    {busyTaskId === task.id ||
+                    task.planning_status === "planning" ? (
+                      <LoaderCircle
+                        size={14}
+                        className="animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <FileText size={14} aria-hidden="true" />
+                    )}
+
+                    {busyTaskId === task.id ||
+                    task.planning_status === "planning"
+                      ? "Creating plan..."
+                      : task.planning_status === "failed"
+                        ? "Retry plan creation"
+                        : "Create implementation plan"}
+                  </button>
+
+                  <p className="mt-2 text-micro text-app-dim">
+                    This makes one request to your configured AI provider.
+                    It cannot edit files or execute code.
+                  </p>
+
+                  {task.planning_error && (
+                    <p className="mt-2 text-xs text-status-red">
+                      {task.planning_error}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {task.plan && (
+                <div className="mt-4 rounded-lg border border-app-line bg-app-panel p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="text-xs font-semibold text-app-text">
+                      Implementation plan
+                    </h4>
+                    <span className="text-micro capitalize text-app-muted">
+                      {task.plan.complexity} complexity
+                    </span>
+                  </div>
+
+                  <p className="mt-2 text-xs text-app-muted">
+                    {task.plan.objective}
+                  </p>
+
+                  <ol className="mt-3 space-y-2">
+                    {task.plan.steps.map((step) => (
+                      <li
+                        key={step.step_number}
+                        className="text-xs text-app-muted"
+                      >
+                        <span className="font-semibold text-app-text">
+                          {step.step_number}. {step.title}
+                        </span>
+                        <p className="mt-1 whitespace-pre-wrap leading-relaxed">
+                          {step.description}
+                        </p>
+                        {step.candidate_files_to_inspect.length > 0 && (
+                          <p className="mt-1 wrap-break-words font-mono text-micro text-app-accent">
+                            {step.candidate_files_to_inspect.join(", ")}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               )}
 
