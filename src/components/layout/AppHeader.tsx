@@ -48,6 +48,23 @@ const routeTitles: Record<string, string> = {
   "/workspace": "Workspace",
 };
 
+const routeCategories: Record<string, string> = {
+  "/": "Workspace",
+  "/tasks": "Workspace",
+  "/repositories": "Workspace",
+  "/intel": "Workspace",
+  "/workspace": "Workspace",
+
+  "/investigation": "Engineering",
+  "/runs": "Engineering",
+  "/patch-review": "Engineering",
+  "/test-lab": "Engineering",
+  "/approvals": "Engineering",
+
+  "/settings": "System",
+  "/profile": "System",
+};
+
 const pendingStatuses = new Set<WorkflowStatus>([
   "awaiting_plan_approval",
   "awaiting_file_selection",
@@ -232,6 +249,7 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
   const controlsRef = useRef<HTMLDivElement>(null);
 
   const pageTitle = getPageTitle(location.pathname);
+  const pageCategory = routeCategories[location.pathname] ?? "Workspace";
   const help = helpContent[location.pathname];
 
   useEffect(() => {
@@ -343,8 +361,10 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
         aria-label="Breadcrumb"
         className="hidden min-w-0 items-center gap-1.5 text-xs sm:flex"
       >
-        <span className="text-app-muted">Workspace</span>
+        <span className="text-app-muted">{pageCategory}</span>
+
         <span className="text-app-dim">/</span>
+
         <span
           className="truncate font-semibold text-app-text"
           aria-current="page"

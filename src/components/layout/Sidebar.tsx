@@ -50,11 +50,6 @@ const workspaceItems: NavigationItem[] = [
     icon: FolderGit,
   },
   {
-    label: "Agent runs",
-    path: "/runs",
-    icon: Activity,
-  },
-  {
     label: "Code intelligence",
     path: "/intel",
     icon: Search,
@@ -62,6 +57,11 @@ const workspaceItems: NavigationItem[] = [
 ];
 
 const engineeringItems: NavigationItem[] = [
+  {
+    label: "Agent runs",
+    path: "/runs",
+    icon: Activity,
+  },
   {
     label: "Investigation",
     path: "/investigation",
