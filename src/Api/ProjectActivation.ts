@@ -26,6 +26,7 @@ export type SnapshotReceipt = {
   sha256: string;
   status: string;
   index_cleanup_pending: boolean;
+  applied_patch_count: number;
 };
 
 export type ProjectFinding = {

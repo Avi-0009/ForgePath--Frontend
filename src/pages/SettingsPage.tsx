@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { getAIConfiguration, saveAIConfiguration, testAIConfiguration, deleteAIConfiguration } from "../Api/AIConfiguration";
+import {
+  deleteAIConfiguration,
+  getAIConfiguration,
+  saveAIConfiguration,
+  testAIConfiguration,
+  type AIProvider,
+} from "../Api/AIConfiguration";
 import { useAuthStore } from "../store/useAuthStore";
 import {
   Activity,
@@ -32,11 +38,6 @@ const providers = [
   { value: "nvidia", label: "NVIDIA" },
   { value: "huggingface", label: "Hugging Face" },
   { value: "openai", label: "OpenAI" },
-  { value: "anthropic", label: "Anthropic" },
-  { value: "google", label: "Google Gemini" },
-  { value: "openrouter", label: "OpenRouter" },
-  { value: "groq", label: "Groq" },
-  { value: "custom", label: "OpenAI-compatible API" },
 ] as const;
 
 const availableModels: Record<string, { id: string; label: string }[]> = {
@@ -93,10 +94,13 @@ const SectionTitle = ({
 const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>("general");
   const [mode, setMode] = useState<CredentialMode>("platform");
-  const [provider, setProvider] = useState("nvidia");
+  const [provider, setProvider] = useState<AIProvider>("nvidia");
   const [modelId, setModelId] = useState("nvidia/nemotron-3-ultra-550b-a55b");
   const [apiKey, setApiKey] = useState("");
   const [hasSavedKey, setHasSavedKey] = useState(false);
+  const [savedProvider, setSavedProvider] = useState<AIProvider | null>(null);
+  const [savedModelId, setSavedModelId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [message, setMessage] = useState("");
   const token = useAuthStore((state) => state.token);
@@ -104,21 +108,35 @@ const SettingsPage = () => {
   useEffect(() => {
     if (!token) return;
     let active = true;
-    getAIConfiguration(token).then((config) => {
-      if (!active) return;
-      if (config.provider && config.model_identifier) {
-        setProvider(config.provider);
-        setModelId(config.model_identifier);
-        setMode("byok");
-      }
-      setHasSavedKey(config.has_api_key);
-    }).catch(() => { if (active) setMessage("Unable to load your saved AI settings."); });
+    getAIConfiguration(token)
+      .then((config) => {
+        if (!active) return;
+        if (config.provider && config.model_identifier) {
+          setProvider(config.provider);
+          setModelId(config.model_identifier);
+          setSavedProvider(config.provider);
+          setSavedModelId(config.model_identifier);
+          setMode("byok");
+        } else {
+          setSavedProvider(null);
+          setSavedModelId(null);
+          setMode("platform");
+        }
+        setHasSavedKey(config.has_api_key);
+      })
+      .catch(() => {
+        if (active) setMessage("Unable to load your saved AI settings.");
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
     return () => { active = false; };
   }, [token]);
 
   const saveSettings = async () => {
     if (!token) { setMessage("Sign in to save your AI settings."); return; }
-    if (!modelId.trim() || (!apiKey.trim() && !hasSavedKey)) {
+    const requiresNewKey = !hasSavedKey || provider !== savedProvider;
+    if (!modelId.trim() || (requiresNewKey && !apiKey.trim())) {
       setMessage("Enter a model identifier and API key."); return;
     }
     setIsBusy(true);
@@ -126,6 +144,8 @@ const SettingsPage = () => {
     try {
       const saved = await saveAIConfiguration(token, provider, modelId.trim(), apiKey);
       setHasSavedKey(saved.has_api_key);
+      setSavedProvider(saved.provider);
+      setSavedModelId(saved.model_identifier);
       setApiKey("");
       setMessage("Saved securely. This model will be used for your AI requests.");
     } catch { setMessage("Could not save. Check the provider, model and API key."); }
@@ -134,6 +154,9 @@ const SettingsPage = () => {
 
   const testSettings = async () => {
     if (!token) return;
+    if (!window.confirm(
+      "Send a small paid request using your saved provider configuration?"
+    )) return;
     setIsBusy(true);
     setMessage("");
     try {
@@ -145,15 +168,47 @@ const SettingsPage = () => {
 
   const removeSettings = async () => {
     if (!token) return;
+    if (!window.confirm(
+      "Remove your saved personal provider and encrypted API key?"
+    )) return;
     setIsBusy(true);
     try {
       await deleteAIConfiguration(token);
       setHasSavedKey(false);
+      setSavedProvider(null);
+      setSavedModelId(null);
       setApiKey("");
       setMode("platform");
       setMessage("Personal configuration removed. ForgePath AI is now selected.");
     } catch { setMessage("Unable to remove the configuration."); }
     finally { setIsBusy(false); }
+  };
+
+  const selectPlatformMode = async () => {
+    if (!token || isLoading || isBusy) return;
+    if (!hasSavedKey) {
+      setMode("platform");
+      return;
+    }
+    if (!window.confirm(
+      "Switch to ForgePath AI and remove your saved personal provider key?"
+    )) return;
+
+    setIsBusy(true);
+    setMessage("");
+    try {
+      await deleteAIConfiguration(token);
+      setHasSavedKey(false);
+      setSavedProvider(null);
+      setSavedModelId(null);
+      setApiKey("");
+      setMode("platform");
+      setMessage("Personal configuration removed. ForgePath AI is now selected.");
+    } catch {
+      setMessage("Could not switch to ForgePath AI. Your saved configuration was kept.");
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   return (
@@ -240,13 +295,13 @@ const SettingsPage = () => {
                   />
                   <Field
                     label="Default repository"
-                    description="Repository defaults will be available after project-source integration."
-                    value="Not configured"
+                    description="The active project is selected from your private project list."
+                    value="Project-scoped"
                   />
                   <Field
                     label="Task creation"
-                    description="New task creation requires an authorized project source."
-                    value="Not yet enabled"
+                    description="Tasks can be created from findings in the current project snapshot review."
+                    value="Review-driven"
                   />
                   <Field
                     label="Confirmation before actions"
@@ -265,10 +320,17 @@ const SettingsPage = () => {
                 />
 
                 <div className="space-y-5 p-4 sm:p-5">
+                  {isLoading && (
+                    <p role="status" className="text-xs text-app-muted">
+                      Loading your saved AI configuration...
+                    </p>
+                  )}
+
                   <div className="grid gap-3 sm:grid-cols-2">
                     <button
                       type="button"
-                      onClick={() => setMode("platform")}
+                      disabled={isLoading || isBusy}
+                      onClick={() => void selectPlatformMode()}
                       aria-pressed={mode === "platform"}
                       className={`rounded-xl border p-4 text-left transition-colors ${
                         mode === "platform"
@@ -297,6 +359,7 @@ const SettingsPage = () => {
 
                     <button
                       type="button"
+                      disabled={isLoading || isBusy}
                       onClick={() => setMode("byok")}
                       aria-pressed={mode === "byok"}
                       className={`rounded-xl border p-4 text-left transition-colors ${
@@ -363,8 +426,9 @@ const SettingsPage = () => {
                         <select
                           id="model-provider"
                           value={provider}
+                          disabled={isLoading || isBusy}
                           onChange={(event) => {
-                            const nextProvider = event.target.value;
+                            const nextProvider = event.target.value as AIProvider;
                             setProvider(nextProvider);
                             setModelId(availableModels[nextProvider]?.[0]?.id ?? "");
                           }}
@@ -392,6 +456,7 @@ const SettingsPage = () => {
                           id="model-name"
                           list="suggested-models"
                           value={modelId}
+                          disabled={isLoading || isBusy}
                           onChange={(event) => setModelId(event.target.value)}
                           placeholder="Enter your provider's model identifier"
                           maxLength={200}
@@ -415,29 +480,37 @@ const SettingsPage = () => {
                           id="provider-key"
                           type="password"
                           value={apiKey}
+                          disabled={isLoading || isBusy}
                           onChange={(event) => setApiKey(event.target.value)}
-                          placeholder={hasSavedKey ? "Saved key hidden — leave blank to keep it" : "Enter your API key"}
-                          autoComplete="off"
+                          placeholder={
+                            hasSavedKey && provider === savedProvider
+                              ? "Saved key hidden — leave blank to keep it"
+                              : "Enter a key for this provider"
+                          }
+                          autoComplete="new-password"
+                          spellCheck={false}
                           className="w-full rounded-lg border border-app-line bg-app-bg px-3 py-2.5 text-xs text-app-text"
                         />
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        <button type="button" disabled={isBusy || !availableModels[provider]}
+                        <button type="button" disabled={isLoading || isBusy}
                           onClick={saveSettings} className="rounded-lg bg-app-accent px-4 py-2 text-xs font-semibold text-app-bg disabled:opacity-50">
                           {isBusy ? "Working…" : "Save configuration"}
                         </button>
-                        <button type="button" disabled={isBusy || !hasSavedKey}
+                        <button type="button" disabled={
+                          isLoading || isBusy || !hasSavedKey ||
+                          provider !== savedProvider || modelId.trim() !== savedModelId ||
+                          Boolean(apiKey.trim())
+                        }
                           onClick={testSettings} className="rounded-lg border border-app-line px-4 py-2 text-xs disabled:opacity-50">
                           Test saved connection
                         </button>
-                        <button type="button" disabled={isBusy || !hasSavedKey}
+                        <button type="button" disabled={isLoading || isBusy || !hasSavedKey}
                           onClick={removeSettings} className="rounded-lg border border-app-line px-4 py-2 text-xs disabled:opacity-50">
                           Remove personal key
                         </button>
                       </div>
-                      {message && <p role="status" className="text-xs text-app-muted">{message}</p>}
-
                       <div className="flex items-start gap-2 rounded-lg border border-status-amber-line bg-status-amber-bg p-3">
                         <AlertTriangle
                           size={16}
@@ -445,12 +518,16 @@ const SettingsPage = () => {
                           aria-hidden="true"
                         />
                         <p className="text-2xs leading-relaxed text-status-amber">
-                          Only NVIDIA, OpenAI, and Hugging Face have backend adapters.
-                          Other providers remain unavailable until their secure integrations are added.
                           Connection testing sends a small paid request to your provider.
                         </p>
                       </div>
                     </div>
+                  )}
+
+                  {message && (
+                    <p role="status" className="text-xs text-app-muted">
+                      {message}
+                    </p>
                   )}
 
                   <div className="border-t border-app-line pt-4">
@@ -585,8 +662,8 @@ const SettingsPage = () => {
                   />
                   <Field
                     label="Repository files"
-                    description="Source code storage and ingestion remain separate from app data."
-                    value="Ingestion deferred"
+                    description="Uploaded source snapshots are isolated by user, project, and immutable snapshot ID."
+                    value="Private snapshots"
                   />
                 </div>
 

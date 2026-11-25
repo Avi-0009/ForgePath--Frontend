@@ -116,7 +116,7 @@ const helpContent: Record<
   },
   "/settings": {
     description:
-      "Review configuration and execution boundaries. Per-user AI provider settings are not yet connected.",
+      "Review configuration, execution boundaries, and encrypted per-user AI provider settings.",
     path: "/profile",
     action: "View profile",
   },

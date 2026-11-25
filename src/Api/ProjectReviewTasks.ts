@@ -23,10 +23,13 @@ export type ProjectReviewTask = {
     | "ready"
     | "approved"
     | "rejected"
-    | "failed";
+    | "failed"
+    | "applied";
   patch: ProjectTaskPatch | null;
   patch_error: string | null;
   patched_at: string | null;
+  applied_snapshot_id: string | null;
+  applied_at: string | null;
   is_current_snapshot: boolean;
   created_at: string;
   updated_at: string;

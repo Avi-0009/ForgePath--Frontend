@@ -535,7 +535,10 @@ const LocalFolderPicker = () => {
         setReview(await startProjectReview(token, project.id));
 
         setActivationMessage(
-          "Project activated and initial codebase review queued.",
+          "Project activated and initial codebase review queued." +
+          (uploaded.applied_patch_count > 0
+            ? ` Detected ${uploaded.applied_patch_count} approved patch${uploaded.applied_patch_count === 1 ? "" : "es"} in this snapshot.`
+            : ""),
         );
       } catch {
         setActivationMessage(
@@ -1141,6 +1144,9 @@ const LocalFolderPicker = () => {
             </p>
             {receipt && <p className="mt-2 text-2xs text-status-green">
               {receipt.file_count} source files stored · {receipt.total_bytes.toLocaleString()} bytes
+              {receipt.applied_patch_count > 0 && (
+                <> · {receipt.applied_patch_count} approved patch{receipt.applied_patch_count === 1 ? "" : "es"} detected</>
+              )}
             </p>}
           </div>
         )}

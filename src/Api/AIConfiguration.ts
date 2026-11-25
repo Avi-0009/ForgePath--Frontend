@@ -1,7 +1,10 @@
 import { apiClient } from "./Auth";
+import { requestWithTokenRefresh } from "./AuthenticatedRequest";
+
+export type AIProvider = "nvidia" | "openai" | "huggingface";
 
 export interface AIConfiguration {
-  provider: string | null;
+  provider: AIProvider | null;
   model_identifier: string | null;
   has_api_key: boolean;
 }
@@ -9,27 +12,46 @@ export interface AIConfiguration {
 const authorization = (token: string) => ({ Authorization: `Bearer ${token}` });
 
 export const getAIConfiguration = (token: string) =>
-  apiClient.get("ai/configuration", { headers: authorization(token) }).json<AIConfiguration>();
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .get("ai/configuration", {
+        headers: authorization(accessToken),
+      })
+      .json<AIConfiguration>()
+  );
 
 export const saveAIConfiguration = (
   token: string,
-  provider: string,
+  provider: AIProvider,
   modelIdentifier: string,
   apiKey: string,
-) => apiClient.put("ai/configuration", {
-  headers: authorization(token),
-  json: {
-    provider,
-    model_identifier: modelIdentifier,
-    ...(apiKey ? { api_key: apiKey } : {}),
-  },
-}).json<AIConfiguration>();
+) =>
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .put("ai/configuration", {
+        headers: authorization(accessToken),
+        json: {
+          provider,
+          model_identifier: modelIdentifier,
+          ...(apiKey ? { api_key: apiKey } : {}),
+        },
+      })
+      .json<AIConfiguration>()
+  );
 
 export const testAIConfiguration = (token: string) =>
-  apiClient.post("ai/configuration/test", {
-    headers: authorization(token),
-    timeout: 260_000,
-  }).json<{ connected: boolean }>();
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .post("ai/configuration/test", {
+        headers: authorization(accessToken),
+        timeout: 260_000,
+      })
+      .json<{ connected: boolean }>()
+  );
 
 export const deleteAIConfiguration = (token: string) =>
-  apiClient.delete("ai/configuration", { headers: authorization(token) });
+  requestWithTokenRefresh(token, (accessToken) =>
+    apiClient.delete("ai/configuration", {
+      headers: authorization(accessToken),
+    })
+  );
