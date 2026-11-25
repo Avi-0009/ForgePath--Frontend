@@ -4,13 +4,16 @@ import { Link } from "react-router-dom";
 import {
   CheckCircle2,
   FileText,
+  GitCompareArrows,
   ListTodo,
   LoaderCircle,
   XCircle,
 } from "lucide-react";
 
 import {
+  createProjectReviewTaskPatch,
   createProjectReviewTaskPlan,
+  decideProjectReviewTaskPatch,
   decideProjectReviewTask,
   getProjectReviewTasks,
   type ProjectReviewTask,
@@ -267,6 +270,81 @@ const ProjectReviewTasksPanel = () => {
     }
   };
 
+  const createPatch = async (task: ProjectReviewTask) => {
+    if (!token || !projectId || busyTaskId || !task.plan) {
+      return;
+    }
+
+    setBusyTaskId(task.id);
+    setErrorData(null);
+
+    try {
+      const updated = await createProjectReviewTaskPatch(
+        token,
+        projectId,
+        task,
+      );
+
+      setTaskData((previous) =>
+        previous?.projectId === projectId
+          ? {
+              ...previous,
+              items: previous.items.map((item) =>
+                item.id === updated.id ? updated : item
+              ),
+            }
+          : previous
+      );
+    } catch {
+      setErrorData({
+        projectId,
+        message:
+          "Could not create this patch proposal. Refresh the project and try again.",
+      });
+    } finally {
+      setBusyTaskId(null);
+    }
+  };
+
+  const decidePatch = async (
+    task: ProjectReviewTask,
+    status: "approved" | "rejected",
+  ) => {
+    if (!token || !projectId || busyTaskId) {
+      return;
+    }
+
+    setBusyTaskId(task.id);
+    setErrorData(null);
+
+    try {
+      const updated = await decideProjectReviewTaskPatch(
+        token,
+        projectId,
+        task,
+        status,
+      );
+
+      setTaskData((previous) =>
+        previous?.projectId === projectId
+          ? {
+              ...previous,
+              items: previous.items.map((item) =>
+                item.id === updated.id ? updated : item
+              ),
+            }
+          : previous
+      );
+    } catch {
+      setErrorData({
+        projectId,
+        message: "Could not save the patch decision.",
+      });
+    } finally {
+      setBusyTaskId(null);
+    }
+  };
+
 
   if (!projectId) {
     return null;
@@ -509,6 +587,99 @@ const ProjectReviewTasksPanel = () => {
                       </li>
                     ))}
                   </ol>
+                </div>
+              )}
+
+              {task.plan && !task.patch && (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    disabled={
+                      busyTaskId !== null ||
+                      task.patch_status === "generating"
+                    }
+                    onClick={() => void createPatch(task)}
+                    className="btn btn-primary text-xs disabled:opacity-50"
+                  >
+                    {busyTaskId === task.id ||
+                    task.patch_status === "generating" ? (
+                      <LoaderCircle
+                        size={14}
+                        className="animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <GitCompareArrows size={14} aria-hidden="true" />
+                    )}
+
+                    {busyTaskId === task.id ||
+                    task.patch_status === "generating"
+                      ? "Creating proposal..."
+                      : task.patch_status === "failed"
+                        ? "Retry patch proposal"
+                        : "Create patch proposal"}
+                  </button>
+
+                  <p className="mt-2 text-micro text-app-dim">
+                    This makes one AI request and creates a reviewable diff.
+                    It does not modify your project files.
+                  </p>
+
+                  {task.patch_error && (
+                    <p className="mt-2 text-xs text-status-red">
+                      {task.patch_error}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {task.patch && (
+                <div className="mt-4 overflow-hidden rounded-lg border border-app-line bg-app-panel">
+                  <div className="flex flex-wrap items-start justify-between gap-2 border-b border-app-line p-3">
+                    <div>
+                      <h4 className="text-xs font-semibold text-app-text">
+                        Patch proposal
+                      </h4>
+                      <p className="mt-1 text-xs text-app-muted">
+                        {task.patch.summary}
+                      </p>
+                    </div>
+                    <span className="rounded-md border border-app-line px-2 py-1 text-micro capitalize text-app-muted">
+                      {task.patch_status}
+                    </span>
+                  </div>
+
+                  <pre className="max-h-96 overflow-auto whitespace-pre p-3 text-micro leading-relaxed text-app-muted">
+                    <code>{task.patch.diff}</code>
+                  </pre>
+
+                  {task.patch_status === "ready" && (
+                    <div className="flex flex-wrap gap-2 border-t border-app-line p-3">
+                      <button
+                        type="button"
+                        disabled={busyTaskId !== null}
+                        onClick={() => void decidePatch(task, "approved")}
+                        className="btn btn-primary text-xs disabled:opacity-50"
+                      >
+                        <CheckCircle2 size={14} aria-hidden="true" />
+                        Approve proposal
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={busyTaskId !== null}
+                        onClick={() => void decidePatch(task, "rejected")}
+                        className="btn text-xs disabled:opacity-50"
+                      >
+                        <XCircle size={14} aria-hidden="true" />
+                        Reject proposal
+                      </button>
+
+                      <p className="w-full text-micro text-app-dim">
+                        Approval records your decision only. No files are applied.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 

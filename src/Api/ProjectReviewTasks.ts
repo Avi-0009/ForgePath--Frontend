@@ -17,8 +17,30 @@ export type ProjectReviewTask = {
   plan: ProjectTaskPlan | null;
   planning_error: string | null;
   planned_at: string | null;
+  patch_status:
+    | "not_started"
+    | "generating"
+    | "ready"
+    | "approved"
+    | "rejected"
+    | "failed";
+  patch: ProjectTaskPatch | null;
+  patch_error: string | null;
+  patched_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type ProjectTaskPatch = {
+  relative_path: string;
+  original_sha256: string;
+  proposed_sha256: string;
+  original_line_count: number;
+  proposed_line_count: number;
+  summary: string;
+  diff: string;
+  proposed_code: string;
+  patch_applied: false;
 };
 
 export type ProjectTaskPlanStep = {
@@ -125,3 +147,49 @@ export const createProjectReviewTaskPlan = (
       })
       .json<ProjectReviewTask>()
   );
+
+export const createProjectReviewTaskPatch = (
+  token: string,
+  projectId: string,
+  task: Pick<ProjectReviewTask, "id" | "snapshot_id" | "plan">
+) => {
+  if (!task.plan) {
+    throw new Error("A saved implementation plan is required.");
+  }
+
+  return requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .post(`projects/${projectId}/tasks/${task.id}/patch`, {
+        headers: headers(accessToken),
+        json: {
+          expected_snapshot_id: task.snapshot_id,
+          expected_plan_id: task.plan?.plan_id,
+        },
+      })
+      .json<ProjectReviewTask>()
+  );
+};
+
+export const decideProjectReviewTaskPatch = (
+  token: string,
+  projectId: string,
+  task: Pick<ProjectReviewTask, "id" | "snapshot_id" | "patch">,
+  decision: "approved" | "rejected"
+) => {
+  if (!task.patch) {
+    throw new Error("A patch proposal is required.");
+  }
+
+  return requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .patch(`projects/${projectId}/tasks/${task.id}/patch`, {
+        headers: headers(accessToken),
+        json: {
+          status: decision,
+          expected_snapshot_id: task.snapshot_id,
+          expected_proposed_sha256: task.patch?.proposed_sha256,
+        },
+      })
+      .json<ProjectReviewTask>()
+  );
+};
