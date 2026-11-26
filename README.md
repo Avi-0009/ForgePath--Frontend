@@ -6,7 +6,7 @@ Built with React 19, TypeScript, Vite 8, Tailwind CSS 4, Zustand, Ky, and React 
 
 ## What is implemented
 
-- Signup, login, refresh-token recovery, logout, full-name/username updates, email verification, and password reset.
+- Signup, login, refresh-token recovery, server-revoked logout, full-name/username updates, email verification, and password reset.
 - Protected routes with account-isolated client state.
 - Local folder selection through the File System Access API.
 - Bounded local snapshot preview before source upload.
@@ -128,6 +128,7 @@ Folder selection does not grant the backend arbitrary disk access. The browser r
 - Authentication and private workspace state are scoped to the current user.
 - Private workspace results are not persisted to local storage.
 - Logout and direct account switches clear private state and invalidate outstanding requests.
+- Every user-facing sign-out action asks the backend to revoke its HTTP-only refresh session before clearing local authentication state.
 - Late responses from a previous session cannot restore cleared data.
 - Local storage contains only the current user's active project identifier.
 - IndexedDB may contain browser folder handles, not source contents or API keys.

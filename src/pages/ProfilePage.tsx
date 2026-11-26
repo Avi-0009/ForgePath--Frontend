@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { CheckCircle2, AlertCircle, User, Mail, Loader2, Save, AtSign, Key, LogOut } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
-import { RequestEmailVerification, VerifyEmailOtp } from "../Api/Auth";
+import { Logout, RequestEmailVerification, VerifyEmailOtp } from "../Api/Auth";
 import { updateProfile } from "../Api/Profile";
+import { revokeAndClearSession } from "../services/signOut";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -20,6 +21,7 @@ const ProfilePage = () => {
 
   const email = user?.email ?? "";
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   
   const [showOtpVerify, setShowOtpVerify] = useState(false);
   const [otp, setOtp] = useState("");
@@ -99,10 +101,18 @@ const ProfilePage = () => {
     }
   };
 
-  const handleSignOut = () => {
-    logout();
-    toast.success("Signed out successfully");
-    navigate("/auth");
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      await revokeAndClearSession(Logout, logout);
+      toast.success("Signed out successfully");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not confirm sign-out.");
+    } finally {
+      setIsSigningOut(false);
+      navigate("/auth");
+    }
   };
 
   const isEmailVerified =
@@ -279,11 +289,14 @@ const ProfilePage = () => {
         <div className="w-full max-w-md mt-6 pt-6 border-t border-app-line">
           <button
             type="button"
-            onClick={handleSignOut}
-            className="w-full h-8 flex items-center justify-center gap-2 bg-transparent border border-status-red/50 text-status-red hover:bg-status-red/10 rounded-lg text-sm font-semibold transition-all"
+            onClick={() => void handleSignOut()}
+            disabled={isSigningOut}
+            className="w-full h-8 flex items-center justify-center gap-2 bg-transparent border border-status-red/50 text-status-red hover:bg-status-red/10 rounded-lg text-sm font-semibold transition-all disabled:cursor-wait disabled:opacity-60"
           >
-            <LogOut className="w-4 h-4" />
-            Sign Out
+            {isSigningOut
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <LogOut className="w-4 h-4" />}
+            {isSigningOut ? "Signing out…" : "Sign Out"}
           </button>
         </div>
       )}

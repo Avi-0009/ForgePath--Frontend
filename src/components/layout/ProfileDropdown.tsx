@@ -3,6 +3,8 @@ import { useNavigate, NavLink } from "react-router-dom";
 import { User, Settings, LogOut } from "lucide-react";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Logout } from "../../Api/Auth";
+import { revokeAndClearSession } from "../../services/signOut";
+import toast from "react-hot-toast";
 
 const ProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -34,9 +36,10 @@ const ProfileDropdown = () => {
     setIsSigningOut(true);
 
     try {
-      await Logout();
+      await revokeAndClearSession(Logout, logout);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not confirm sign-out.");
     } finally {
-      logout();
       setIsSigningOut(false);
     }
   };
