@@ -40,12 +40,19 @@ function memoryStorage() {
 Object.defineProperty(globalThis, "localStorage", { value: memoryStorage(), configurable: true });
 Object.defineProperty(globalThis, "sessionStorage", { value: memoryStorage(), configurable: true });
 Object.defineProperty(globalThis, "window", {
-  value: { localStorage: globalThis.localStorage }, configurable: true,
+  value: {
+    localStorage: globalThis.localStorage,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => true,
+  },
+  configurable: true,
 });
 sessionStorage.setItem("forgepath-workspace", JSON.stringify({ state: { patchResult: { proposed_code: "old private source" } }, version: 0 }));
 
 const { useAuthStore } = await import("../src/store/useAuthStore.ts");
 const { useWorkspaceStore, createWorkspaceRequestGuard } = await import("../src/store/useWorkspaceStore.ts");
+const { getActiveProjectId, setActiveProjectId } = await import("../src/store/useActiveProjectId.ts");
 const alice = { id: "alice", name: "Alice", username: "alice", email: "alice@example.test" };
 const bob = { ...alice, id: "bob", username: "bob" };
 const privateState = {
@@ -103,4 +110,16 @@ test("late results cannot restore data after logout and same-account login", asy
   finish(privateState.patchResult);
   await pending;
   assertEmpty();
+});
+
+test("active project sessions persist independently for each account", () => {
+  setActiveProjectId(alice.id, "project-alice");
+  setActiveProjectId(bob.id, "project-bob");
+  assert.equal(getActiveProjectId(alice.id), "project-alice");
+  assert.equal(getActiveProjectId(bob.id), "project-bob");
+
+  setActiveProjectId(alice.id, null);
+  assert.equal(getActiveProjectId(alice.id), null);
+  assert.equal(getActiveProjectId(bob.id), "project-bob");
+  setActiveProjectId(bob.id, null);
 });

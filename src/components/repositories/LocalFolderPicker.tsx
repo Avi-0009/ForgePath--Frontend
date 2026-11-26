@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
+  Clock3,
   FileCode2,
   Folder,
   FolderOpen,
@@ -210,7 +211,11 @@ const listDirectory = async (
   return { entries, truncated };
 };
 
-const LocalFolderPicker = () => {
+type LocalFolderPickerProps = {
+  refreshSignal?: number;
+};
+
+const LocalFolderPicker = ({ refreshSignal = 0 }: LocalFolderPickerProps) => {
   const token = useAuthStore((state) => state.token);
   const userId = useAuthStore((state) => state.user?.id);
   const activeProjectId = useActiveProjectId();
@@ -242,6 +247,8 @@ const LocalFolderPicker = () => {
 
   const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
   const [activationMessage, setActivationMessage] = useState("");
+  const [projectsLoading, setProjectsLoading] = useState(Boolean(token));
+  const [projectsError, setProjectsError] = useState("");
 
   const [ownedProjectsData, setOwnedProjectsData] =
     useState<{
@@ -317,7 +324,7 @@ const LocalFolderPicker = () => {
     })();
 
     return () => { cancelled = true; };
-  }, [token, userId]);
+  }, [token, userId, refreshSignal]);
 
   const root = locations[0];
   const current = locations.at(-1);
@@ -338,6 +345,7 @@ const LocalFolderPicker = () => {
               (project) => project.status !== "archived"
             ),
           });
+          setProjectsError("");
         }
       })
       .catch(() => {
@@ -346,13 +354,17 @@ const LocalFolderPicker = () => {
             userId,
             items: [],
           });
+          setProjectsError("Could not load your previous project sessions.");
         }
+      })
+      .finally(() => {
+        if (mounted) setProjectsLoading(false);
       });
 
     return () => {
       mounted = false;
     };
-  }, [token, userId]);
+  }, [token, userId, refreshSignal]);
 
   useEffect(() => {
     if (!token || !userId) {
@@ -565,6 +577,28 @@ const LocalFolderPicker = () => {
     setReceipt(null);
     setReview(null);
     setActivationMessage("Active-project preference cleared. The saved project was not deleted.");
+  };
+
+  const openProjectSession = async (projectId: string) => {
+    if (!token || !userId || loading) return;
+    setLoading(true);
+    setError("");
+    setActivationMessage("");
+    try {
+      const project = await getProject(token, projectId);
+      setActiveProjectId(userId, project.id);
+      setActiveProject(project);
+      setProjectTarget(project.id);
+      setReceipt(null);
+      setReview(null);
+      setActivationMessage(
+        `Opened ${project.name}. Its saved snapshot and workflow history are now active.`,
+      );
+    } catch {
+      setError("Could not open this project session. Refresh the list and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const reopenSavedFolder = async (folder: SavedFolderAccess) => {
@@ -820,6 +854,89 @@ const LocalFolderPicker = () => {
       </div>
 
       <div className="p-4 sm:p-5">
+        <section
+          className="mb-4 rounded-lg border border-app-line bg-app-panel2 p-3"
+          aria-label="Previous ForgePath project sessions"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h3 className="text-xs font-semibold text-app-text">
+                Previous project sessions
+              </h3>
+              <p className="mt-1 text-2xs text-app-muted">
+                Stored privately on the backend and available after signing in on another browser.
+              </p>
+            </div>
+            <span className="rounded-md border border-app-line px-2 py-1 text-micro text-app-muted">
+              {ownedProjects.length} saved
+            </span>
+          </div>
+
+          {projectsLoading ? (
+            <p role="status" className="mt-3 flex items-center gap-2 text-2xs text-app-muted">
+              <LoaderCircle size={13} className="animate-spin" />
+              Loading previous sessions…
+            </p>
+          ) : projectsError ? (
+            <p role="alert" className="mt-3 text-2xs text-status-amber">
+              {projectsError}
+            </p>
+          ) : ownedProjects.length === 0 ? (
+            <p className="mt-3 rounded-md border border-dashed border-app-line p-3 text-2xs text-app-muted">
+              No saved sessions yet. Open a local folder and confirm its first snapshot to create one.
+            </p>
+          ) : (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {ownedProjects.map((project) => {
+                const isActive = project.id === activeProjectId;
+                const savedFolder = savedFolders.find(
+                  (folder) => folder.projectId === project.id,
+                );
+                return (
+                  <article
+                    key={project.id}
+                    className={`rounded-md border p-3 ${
+                      isActive
+                        ? "border-status-green-line bg-status-green-bg"
+                        : "border-app-line bg-app-bg"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h4 className="truncate text-xs font-semibold text-app-text">
+                          {project.name}
+                        </h4>
+                        <p className="mt-1 flex items-center gap-1 text-micro text-app-muted">
+                          <Clock3 size={11} aria-hidden="true" />
+                          Updated {new Date(project.updated_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded border border-app-line px-1.5 py-0.5 text-micro capitalize text-app-muted">
+                        {project.status}
+                      </span>
+                    </div>
+
+                    <p className="mt-2 text-micro text-app-dim">
+                      {savedFolder
+                        ? `Local folder remembered in this browser: ${savedFolder.folderName}`
+                        : "Server session available; reconnect the local folder only when you need local file access."}
+                    </p>
+
+                    <button
+                      type="button"
+                      disabled={loading || isActive}
+                      onClick={() => void openProjectSession(project.id)}
+                      className="btn mt-3 w-full text-xs disabled:opacity-50"
+                    >
+                      {isActive ? "Active session" : "Open session"}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
         {savedFolders.length > 0 && (
           <section className="mb-4 rounded-lg border border-app-line bg-app-panel2 p-3" aria-label="Remembered local folders">
             <h3 className="text-xs font-semibold text-app-text">Your saved folders</h3>

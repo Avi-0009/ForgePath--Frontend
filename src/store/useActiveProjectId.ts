@@ -1,8 +1,10 @@
 import { useSyncExternalStore } from "react";
-import { activeProjectStorageKey } from "../Api/ProjectActivation";
 import { useAuthStore } from "./useAuthStore";
 
 const PROJECT_CHANGED = "forgepath:active-project-changed";
+
+const activeProjectStorageKey = (userId: string) =>
+  `forgepath:active-project:${userId}`;
 
 const subscribe = (onChange: () => void) => {
   window.addEventListener(PROJECT_CHANGED, onChange);

@@ -11,6 +11,7 @@ Built with React 19, TypeScript, Vite 8, Tailwind CSS 4, Zustand, Ky, and React 
 - Local folder selection through the File System Access API.
 - Bounded local snapshot preview before source upload.
 - User-owned project activation and snapshot status.
+- Persistent previous-project library with account-scoped session reopening.
 - Initial review progress and finding-to-task promotion.
 - Code search, reference checks, semantic indexing, investigations, and conversations.
 - Snapshot-pinned task plans and patch proposals.
@@ -90,7 +91,7 @@ Public-only routes redirect authenticated users into the application. Every othe
 | `/auth` | Signup and login. |
 | `/forgot-password` | Password reset and OTP flow. |
 | `/` | Authenticated dashboard. |
-| `/repositories` | Select folders, preview snapshots, activate projects. |
+| `/repositories` | Reopen saved project sessions, reconnect folders, preview snapshots, and activate projects. |
 | `/tasks` | Current tasks, history, plans, proposals, exports. |
 | `/runs` | Agent workflow history. |
 | `/intel` | Code Intelligence and semantic indexing. |
@@ -131,6 +132,7 @@ Folder selection does not grant the backend arbitrary disk access. The browser r
 - Every user-facing sign-out action asks the backend to revoke its HTTP-only refresh session before clearing local authentication state.
 - Late responses from a previous session cannot restore cleared data.
 - Local storage contains only the current user's active project identifier.
+- Backend-owned project sessions remain discoverable across browsers; browser folder handles remain device-local in IndexedDB.
 - IndexedDB may contain browser folder handles, not source contents or API keys.
 - Provider keys exist only in the password input until submission; the frontend never persists them and the backend never returns them.
 - Authenticated API calls perform at most one account-safe token refresh and never retry under a different account.

@@ -10,6 +10,8 @@ export type ActivatedProject = {
   id: string;
   name: string;
   status: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type ProjectListResponse = {
@@ -111,6 +113,3 @@ export const getLatestProjectReview = (token: string, projectId: string) =>
       headers: headers(accessToken),
     }).json<ProjectReview | null>(),
   );
-
-export const activeProjectStorageKey = (userId: string) =>
-  `forgepath:active-project:${userId}`;

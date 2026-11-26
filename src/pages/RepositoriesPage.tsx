@@ -100,9 +100,8 @@ const RepositoriesPage = () => {
             </h1>
 
             <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-app-muted">
-              Explore configured local codebases. Remote repository
-              connection and indexing will be available after
-              the ingestion integration is complete.
+              Reopen your private ForgePath project sessions, reconnect remembered
+              local folders, or activate another codebase snapshot.
             </p>
           </div>
 
@@ -127,11 +126,9 @@ const RepositoriesPage = () => {
           />
 
           <p className="text-xs leading-relaxed text-status-blue">
-            <strong>Local source access only.</strong> These are
-            workspace roots permitted by the backend, not
-            GitHub repositories connected to your account.
-            Selecting one here does not index, clone, or
-            modify any files.
+            <strong>Two storage boundaries.</strong> ForgePath project sessions and
+            uploaded snapshots persist privately on the backend. Local folder handles
+            are remembered only by this browser and may require permission again.
           </p>
         </div>
 
@@ -145,7 +142,10 @@ const RepositoriesPage = () => {
           </div>
         )}
 
-        <LocalFolderPicker key={userId ?? "signed-out"} />
+        <LocalFolderPicker
+          key={userId ?? "signed-out"}
+          refreshSignal={refreshKey}
+        />
 
         <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-home">
           <section className={panel}>
