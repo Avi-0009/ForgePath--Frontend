@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CheckCircle2, AlertCircle, User, Mail, Loader2, Save, AtSign, Key, LogOut } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { RequestEmailVerification, VerifyEmailOtp } from "../Api/Auth";
+import { updateProfile } from "../Api/Profile";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -35,13 +36,33 @@ const ProfilePage = () => {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !token) return;
+
+    const fullName = name.trim();
+    const normalizedUsername = username.trim().toLowerCase();
+    if (!fullName) return toast.error("Full name is required.");
+    if (!/^[a-z0-9_]{3,20}$/.test(normalizedUsername)) {
+      return toast.error("Username must use 3-20 lowercase letters, numbers, or underscores.");
+    }
     
     setIsSubmitting(true);
     try {
+      const updated = await updateProfile(token, {
+        full_name: fullName,
+        username: normalizedUsername,
+      });
+      if (useAuthStore.getState().user?.id !== user.id) return;
+      updateUser({
+        name: updated.full_name,
+        username: updated.username,
+        email: updated.email,
+        is_email_verified: updated.is_email_verified,
+      });
+      setName(updated.full_name);
+      setUsername(updated.username);
       toast.success("Profile updated successfully");
-    } catch {
-      toast.error("Failed to update profile. Username might be taken.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update your profile.");
     } finally {
       setIsSubmitting(false);
     }
@@ -128,6 +149,10 @@ const ProfilePage = () => {
               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
               <input
                 type="text"
+                name="full_name"
+                autoComplete="name"
+                required
+                maxLength={100}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-[#1c2124] border border-app-line rounded-xl text-app-text focus:outline-none focus:border-app-accent transition-all shadow-sm"
@@ -148,8 +173,14 @@ const ProfilePage = () => {
               <AtSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
               <input
                 type="text"
+                name="username"
+                autoComplete="username"
+                required
+                minLength={3}
+                maxLength={20}
+                pattern="[a-z0-9_]{3,20}"
                 value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
                 className="w-full pl-10 pr-4 py-2 bg-[#1c2124] border border-app-line rounded-xl text-app-text focus:outline-none focus:border-app-accent transition-all shadow-sm"
                 placeholder="username"
                 disabled={isSubmitting || !user}

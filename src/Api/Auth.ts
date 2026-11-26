@@ -132,23 +132,3 @@ export const VerifyEmailOtp = async (token: string, otp: string) => {
     })
     .json();
 };
-
-export const UpdateProfile = async (
-  token: string,
-  data: { name: string; username: string; email: string },
-) => {
-  const response = await fetch("auth/me", {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to update profile");
-  }
-
-  return response.json();
-};

@@ -6,7 +6,7 @@ Built with React 19, TypeScript, Vite 8, Tailwind CSS 4, Zustand, Ky, and React 
 
 ## What is implemented
 
-- Signup, login, refresh-token recovery, logout, email verification, and password reset.
+- Signup, login, refresh-token recovery, logout, full-name/username updates, email verification, and password reset.
 - Protected routes with account-isolated client state.
 - Local folder selection through the File System Access API.
 - Bounded local snapshot preview before source upload.
@@ -14,7 +14,7 @@ Built with React 19, TypeScript, Vite 8, Tailwind CSS 4, Zustand, Ky, and React 
 - Initial review progress and finding-to-task promotion.
 - Code search, reference checks, semantic indexing, investigations, and conversations.
 - Snapshot-pinned task plans and patch proposals.
-- Explicit decisions with verified `.diff` downloads.
+- Explicit decisions with verified `.diff` downloads and confirmed browser-local application.
 - Current-snapshot tasks separated from historical records.
 - Applied-patch feedback after a changed folder is uploaded again.
 - Encrypted personal AI-provider configuration through Settings.
@@ -100,7 +100,7 @@ Public-only routes redirect authenticated users into the application. Every othe
 | `/approvals` | Agent approval checkpoints. |
 | `/settings` | Runtime and encrypted personal-provider settings. |
 | `/workspace` | Legacy server-local workspace browser. |
-| `/profile` | User profile. |
+| `/profile` | Update full name and username, verify email, and sign out. |
 
 ## Browser-project workflow
 
@@ -114,10 +114,11 @@ Open local folder
   -> save finding as task
   -> approve and generate plan
   -> generate and review patch proposal
-  -> approve and download verified .diff
-  -> apply locally
-  -> preview and upload again
-  -> detect exact approved content as applied
+  -> approve the proposal
+  -> explicitly confirm local application
+  -> verify the exact connected folder and source version
+  -> write one existing file
+  -> upload a new snapshot and mark the exact proposal applied
 ```
 
 Folder selection does not grant the backend arbitrary disk access. The browser reads only the selected directory after a user gesture, filters locally, and uploads permitted text files. Remembered folder handles are stored in IndexedDB and still require browser permission when reopened.
@@ -132,6 +133,7 @@ Folder selection does not grant the backend arbitrary disk access. The browser r
 - IndexedDB may contain browser folder handles, not source contents or API keys.
 - Provider keys exist only in the password input until submission; the frontend never persists them and the backend never returns them.
 - Authenticated API calls perform at most one account-safe token refresh and never retry under a different account.
+- Profile updates are normalized and validated by the backend; email changes are intentionally excluded so verification cannot be bypassed.
 
 ## Personal AI providers
 
@@ -188,7 +190,7 @@ Frontend safeguards include:
 - No automatic Ky retries for state-changing requests.
 - Snapshot preview and limits before upload.
 - Clear warnings for potentially paid provider calls.
-- No direct application of browser-project patches; approved proposals export as verified diffs.
+- Browser-project patches require approval, a second explicit confirmation, write permission, full-snapshot matching, and exact source/proposal hashes before one existing file is replaced.
 
 Never embed secrets in a Vite build, expose development servers to untrusted networks, or treat hidden UI controls as authorization.
 
