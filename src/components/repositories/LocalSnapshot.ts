@@ -82,6 +82,45 @@ type BuildResult = {
   skippedDirectories: number;
 };
 
+const digestHex = async (bytes: Uint8Array): Promise<string> => {
+  const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0")).join("");
+};
+
+export const sha256Text = async (content: string): Promise<string> =>
+  digestHex(new TextEncoder().encode(content));
+
+export const computeSnapshotSha256 = async (
+  files: SnapshotFile[],
+): Promise<string> => {
+  const encoder = new TextEncoder();
+  const chunks: Uint8Array[] = [];
+  let byteLength = 0;
+
+  for (const file of [...files].sort((left, right) =>
+    left.relative_path < right.relative_path ? -1 :
+      left.relative_path > right.relative_path ? 1 : 0)) {
+    const path = encoder.encode(file.relative_path);
+    const contentHash = new Uint8Array(
+      await crypto.subtle.digest("SHA-256", encoder.encode(file.content) as BufferSource),
+    );
+    const chunk = new Uint8Array(path.byteLength + 1 + contentHash.byteLength);
+    chunk.set(path);
+    chunk.set(contentHash, path.byteLength + 1);
+    chunks.push(chunk);
+    byteLength += chunk.byteLength;
+  }
+
+  const combined = new Uint8Array(byteLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return digestHex(combined);
+};
+
 export const collectLocalSnapshot = async (
   root: FileSystemDirectoryHandle,
 ): Promise<BuildResult> => {

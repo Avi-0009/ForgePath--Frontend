@@ -27,6 +27,7 @@ export type SnapshotReceipt = {
   status: string;
   index_cleanup_pending: boolean;
   applied_patch_count: number;
+  applied_patch_task_ids: string[];
 };
 
 export type ProjectFinding = {
@@ -83,9 +84,15 @@ export const uploadProjectSnapshot = (
   projectId: string,
   files: SnapshotFile[],
   assetPaths: string[] = [],
+  expectedSnapshotId?: string,
 ) => requestWithTokenRefresh(token, (accessToken) =>
   apiClient.put(`projects/${encodeURIComponent(projectId)}/snapshot`, {
-    headers: headers(accessToken),
+    headers: {
+      ...headers(accessToken),
+      ...(expectedSnapshotId
+        ? { "X-ForgePath-Expected-Snapshot-Id": expectedSnapshotId }
+        : {}),
+    },
     json: { files, asset_paths: assetPaths },
     timeout: 120_000,
   }).json<SnapshotReceipt>(),

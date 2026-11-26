@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import {
   CheckCircle2,
   Download,
+  FilePenLine,
   FileText,
   GitCompareArrows,
   History,
@@ -22,6 +23,7 @@ import {
   type ProjectReviewTask,
 } from "../../Api/ProjectReviewTasks";
 import { decideProjectPlan } from "../../Api/ProjectWorkflows";
+import { applyApprovedPatchToSavedFolder } from "../repositories/LocalPatchApplication";
 
 import { useActiveProjectId } from "../../store/useActiveProjectId";
 import { useAuthStore } from "../../store/useAuthStore";
@@ -58,6 +60,7 @@ const ProjectReviewTasksPanel = () => {
 
   const [busyTaskId, setBusyTaskId] =
     useState<string | null>(null);
+  const [applyingTaskId, setApplyingTaskId] = useState<string | null>(null);
 
   const [errorData, setErrorData] = useState<{
     projectId: string;
@@ -70,6 +73,10 @@ const ProjectReviewTasksPanel = () => {
       : "";
 
   const [reload, setReload] = useState(0);
+  const [successData, setSuccessData] = useState<{
+    projectId: string;
+    message: string;
+  } | null>(null);
 
 
   useEffect(() => {
@@ -421,6 +428,43 @@ const ProjectReviewTasksPanel = () => {
     }
   };
 
+  const applyPatch = async (task: ProjectReviewTask) => {
+    if (!token || !userId || !projectId || busyTaskId || !task.patch ||
+        task.patch_status !== "approved" || !task.is_current_snapshot) return;
+    if (!window.confirm(
+      `Apply the approved change to ${task.path} in your connected local folder? ` +
+      "ForgePath will verify the whole folder, replace that one file, and upload a new snapshot. " +
+      "This writes to your local source code.",
+    )) return;
+
+    setBusyTaskId(task.id);
+    setApplyingTaskId(task.id);
+    setErrorData(null);
+    setSuccessData(null);
+    try {
+      const receipt = await applyApprovedPatchToSavedFolder(
+        token,
+        userId,
+        projectId,
+        task,
+      );
+      setSuccessData({
+        projectId,
+        message: `Patch applied and snapshot ${receipt.snapshot_id.slice(0, 8)} uploaded.`,
+      });
+      setLoading(true);
+      setReload((previous) => previous + 1);
+    } catch (error) {
+      setErrorData({
+        projectId,
+        message: error instanceof Error ? error.message : "Could not apply this patch safely.",
+      });
+    } finally {
+      setApplyingTaskId(null);
+      setBusyTaskId(null);
+    }
+  };
+
 
   if (!projectId) {
     return null;
@@ -490,6 +534,12 @@ const ProjectReviewTasksPanel = () => {
           className="mt-3 text-xs text-status-red"
         >
           {error}
+        </p>
+      )}
+
+      {successData?.projectId === projectId && (
+        <p role="status" className="mt-3 text-xs text-status-green">
+          {successData.message}
         </p>
       )}
 
@@ -803,14 +853,30 @@ const ProjectReviewTasksPanel = () => {
                   )}
 
                   {task.patch_status === "approved" && task.is_current_snapshot && (
-                    <div className="border-t border-app-line p-3">
+                    <div className="flex flex-wrap gap-2 border-t border-app-line p-3">
+                      <button
+                        type="button"
+                        disabled={busyTaskId !== null}
+                        onClick={() => void applyPatch(task)}
+                        className="btn btn-primary text-xs disabled:opacity-50"
+                      >
+                        {applyingTaskId === task.id ? (
+                          <LoaderCircle size={14} className="animate-spin" aria-hidden="true" />
+                        ) : (
+                          <FilePenLine size={14} aria-hidden="true" />
+                        )}
+                        {applyingTaskId === task.id
+                          ? "Verifying and applying..."
+                          : "Apply to local folder"}
+                      </button>
+
                       <button
                         type="button"
                         disabled={busyTaskId !== null}
                         onClick={() => void downloadPatch(task)}
-                        className="btn btn-primary text-xs disabled:opacity-50"
+                        className="btn text-xs disabled:opacity-50"
                       >
-                        {busyTaskId === task.id ? (
+                        {busyTaskId === task.id && applyingTaskId !== task.id ? (
                           <LoaderCircle
                             size={14}
                             className="animate-spin"
@@ -819,13 +885,14 @@ const ProjectReviewTasksPanel = () => {
                         ) : (
                           <Download size={14} aria-hidden="true" />
                         )}
-                        {busyTaskId === task.id
+                        {busyTaskId === task.id && applyingTaskId !== task.id
                           ? "Preparing export..."
                           : "Download approved .diff"}
                       </button>
 
-                      <p className="mt-2 text-micro text-app-dim">
-                        ForgePath revalidates the snapshot and patch hashes before export.
+                      <p className="w-full text-micro text-app-dim">
+                        Local apply requires the exact connected folder and explicit browser write access.
+                        ForgePath revalidates hashes, writes one existing file, then uploads a new snapshot.
                       </p>
                     </div>
                   )}

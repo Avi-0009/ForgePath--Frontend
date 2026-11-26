@@ -48,6 +48,17 @@ export const listSavedFolders = async (userId: string): Promise<SavedFolderAcces
   (await transact("readonly", (store) => store.getAll()) as SavedFolderAccess[])
     .filter((entry) => entry.userId === userId);
 
+export const getSavedFolder = async (
+  userId: string,
+  projectId: string,
+): Promise<SavedFolderAccess | null> => {
+  const result = await transact(
+    "readonly",
+    (store) => store.get(`${userId}:${projectId}`),
+  ) as SavedFolderAccess | undefined;
+  return result?.userId === userId && result.projectId === projectId ? result : null;
+};
+
 export const saveFolder = async (
   userId: string,
   projectId: string,
@@ -66,9 +77,11 @@ export const forgetFolder = async (userId: string, projectId: string): Promise<v
   await transact("readwrite", (store) => store.delete(`${userId}:${projectId}`));
 };
 
+type FolderPermissionMode = "read" | "readwrite";
+
 type PermissionAwareHandle = FileSystemDirectoryHandle & {
-  queryPermission: (options: { mode: "read" }) => Promise<PermissionState>;
-  requestPermission: (options: { mode: "read" }) => Promise<PermissionState>;
+  queryPermission: (options: { mode: FolderPermissionMode }) => Promise<PermissionState>;
+  requestPermission: (options: { mode: FolderPermissionMode }) => Promise<PermissionState>;
 };
 
 export const folderPermission = async (
@@ -79,4 +92,12 @@ export const folderPermission = async (
   const method = request ? browserHandle.requestPermission : browserHandle.queryPermission;
   if (typeof method !== "function") return "prompt";
   return method.call(browserHandle, { mode: "read" });
+};
+
+export const requestFolderWritePermission = async (
+  handle: FileSystemDirectoryHandle,
+): Promise<PermissionState> => {
+  const browserHandle = handle as PermissionAwareHandle;
+  if (typeof browserHandle.requestPermission !== "function") return "denied";
+  return browserHandle.requestPermission({ mode: "readwrite" });
 };

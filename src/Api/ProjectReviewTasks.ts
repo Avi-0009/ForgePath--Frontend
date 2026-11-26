@@ -49,6 +49,17 @@ export type ProjectTaskPatch = {
   patch_applied: false;
 };
 
+export type ProjectPatchApplication = {
+  project_id: string;
+  task_id: string;
+  snapshot_id: string;
+  snapshot_sha256: string;
+  relative_path: string;
+  original_sha256: string;
+  proposed_sha256: string;
+  proposed_code: string;
+};
+
 export type ProjectTaskPlanStep = {
   step_number: number;
   title: string;
@@ -219,3 +230,21 @@ export const downloadProjectReviewTaskPatch = (
       })
       .blob()
   );
+
+export const prepareProjectReviewTaskPatchApplication = (
+  token: string,
+  projectId: string,
+  task: Pick<ProjectReviewTask, "id" | "snapshot_id" | "patch">,
+) => {
+  if (!task.patch) throw new Error("An approved patch proposal is required.");
+  return requestWithTokenRefresh(token, (accessToken) =>
+    apiClient.post(`projects/${projectId}/tasks/${task.id}/patch/application`, {
+      headers: headers(accessToken),
+      json: {
+        expected_snapshot_id: task.snapshot_id,
+        expected_proposed_sha256: task.patch?.proposed_sha256,
+      },
+      cache: "no-store",
+    }).json<ProjectPatchApplication>()
+  );
+};
