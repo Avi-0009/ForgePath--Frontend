@@ -23,6 +23,10 @@ import TestLabPage from "./pages/TestLabPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
 
 import { useAuthStore } from "./store/useAuthStore";
+import {
+  ACCOUNT_ROUTES,
+  canAccessProtectedRoute,
+} from "./routing/accountRoutes";
 
 const PublicOnlyRoute = () => {
   const isAuthenticated = useAuthStore(
@@ -41,7 +45,7 @@ const RequireAuth = () => {
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
 
-  return isAuthenticated && token && user
+  return user && canAccessProtectedRoute({ isAuthenticated, token, user })
     ? <AppLayout key={user.id} />
     : <Navigate to="/auth" replace />;
 };
@@ -81,13 +85,13 @@ const App = () => (
         path="/approvals"
         element={<ApprovalsPage />}
       />
-      <Route path="/settings" element={<SettingsPage />} />
+      <Route path={ACCOUNT_ROUTES.settings} element={<SettingsPage />} />
       <Route
         path="/workspace"
         element={<WorkspacePage />}
       />
 
-      <Route path="/profile" element={<ProfilePage />} />
+      <Route path={ACCOUNT_ROUTES.profile} element={<ProfilePage />} />
     </Route>
   </Routes>
 );

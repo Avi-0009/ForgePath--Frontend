@@ -71,7 +71,7 @@ For a direct API URL, configure the backend's `CORS_ORIGINS` for the exact front
 | `npm run dev` | Start the HTTPS development server on port `5173`. |
 | `npm run build` | Type-check and create optimized assets. |
 | `npm run lint` | Run ESLint across TypeScript and React files. |
-| `npm test` | Run session/privacy regression tests. |
+| `npm test` | Run profile, protected-route, session, and privacy regression tests. |
 | `npm run preview` | Preview the production build. |
 
 Run all frontend checks before handing off changes:

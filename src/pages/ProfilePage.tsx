@@ -6,6 +6,11 @@ import { updateProfile } from "../Api/Profile";
 import { revokeAndClearSession } from "../services/signOut";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import {
+  buildProfileUpdatePayload,
+  profileDraftHasChanges,
+  profileStoreUpdate,
+} from "./profileForm";
 
 const ProfilePage = () => {
   const { user, token, updateUser, logout } = useAuthStore();
@@ -40,26 +45,23 @@ const ProfilePage = () => {
     e.preventDefault();
     if (!user || !token) return;
 
-    const fullName = name.trim();
-    const normalizedUsername = username.trim().toLowerCase();
-    if (!fullName) return toast.error("Full name is required.");
-    if (!/^[a-z0-9_]{3,20}$/.test(normalizedUsername)) {
-      return toast.error("Username must use 3-20 lowercase letters, numbers, or underscores.");
+    let payload;
+    try {
+      payload = buildProfileUpdatePayload(name, username);
+    } catch (error) {
+      return toast.error(error instanceof Error ? error.message : "Invalid profile details.");
     }
     
     setIsSubmitting(true);
     try {
-      const updated = await updateProfile(token, {
-        full_name: fullName,
-        username: normalizedUsername,
-      });
-      if (useAuthStore.getState().user?.id !== user.id) return;
-      updateUser({
-        name: updated.full_name,
-        username: updated.username,
-        email: updated.email,
-        is_email_verified: updated.is_email_verified,
-      });
+      const updated = await updateProfile(token, payload);
+      const storeUpdate = profileStoreUpdate(
+        user.id,
+        useAuthStore.getState().user?.id,
+        updated,
+      );
+      if (!storeUpdate) return;
+      updateUser(storeUpdate);
       setName(updated.full_name);
       setUsername(updated.username);
       toast.success("Profile updated successfully");
@@ -117,7 +119,7 @@ const ProfilePage = () => {
 
   const isEmailVerified =
     user?.is_email_verified === true;
-  const hasChanges = name !== user?.name || username !== user?.username;
+  const hasChanges = profileDraftHasChanges(name, username, user);
 
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col items-center pt-[3vh] animate-in fade-in slide-in-from-bottom-2 duration-300 px-6 pb-12">
