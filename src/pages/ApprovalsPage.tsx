@@ -18,6 +18,7 @@ import {
 import { getAgentRunDetail, type WorkflowDetail } from "../Api/AgentRuns";
 import { getTaskHistory, type TaskHistoryItem, type WorkflowStatus } from "../Api/Tasks";
 import { engineeringError, resumeWorkflow, type Decision } from "../Api/Engineering";
+import ProjectWorkflowQueue from "../components/engineering/ProjectWorkflowQueue";
 import { useAuthStore } from "../store/useAuthStore";
 
 const pendingStates = new Set<WorkflowStatus>([
@@ -153,18 +154,20 @@ const ApprovalsPage = () => {
       <div className="mx-auto max-w-app space-y-5">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div><p className="mb-1 text-micro font-bold uppercase tracking-eyebrow text-app-dim">ENGINEERING / HUMAN CHECKPOINTS</p><h1 className="font-manrope text-[28px] font-extrabold tracking-tight">Approvals</h1><p className="mt-1 max-w-2xl text-[13px] text-app-muted">Inspect the pending checkpoint before allowing a workflow to continue.</p></div>
-          <button type="button" className="btn" onClick={refresh} disabled={!token || loading || submitting}><RefreshCw size={14} className={loading ? "animate-spin" : ""}/>Refresh queue</button>
+          <button type="button" className="btn" onClick={refresh} disabled={!token || loading || submitting}><RefreshCw size={14} className={loading ? "animate-spin" : ""}/>Refresh legacy queue</button>
         </header>
 
-        <div className="flex gap-3 rounded-callout border border-status-amber-line bg-status-amber-bg p-4 text-xs text-status-amber"><ShieldAlert size={18} className="shrink-0"/><p><strong>Human-controlled execution.</strong> Approving patches can write to configured source files. Approving tests can execute code. A rejected or cancelled checkpoint is not a rollback of earlier changes.</p></div>
+        <ProjectWorkflowQueue mode="approvals" />
+
+        <div className="flex gap-3 rounded-callout border border-status-amber-line bg-status-amber-bg p-4 text-xs text-status-amber"><ShieldAlert size={18} className="shrink-0"/><p><strong>Legacy workspace execution only.</strong> The legacy decisions below can write to configured source files or execute tests. Uploaded-project approvals above never apply patches or run commands.</p></div>
         {error && <div role="alert" className="rounded-lg border border-status-amber-line bg-status-amber-bg p-3 text-xs text-status-amber">{error}</div>}
         {notice && <div role="status" className="rounded-lg border border-status-green-line bg-status-green-bg p-3 text-xs text-status-green">{notice}</div>}
 
         <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(230px,0.78fr)_minmax(0,1.5fr)]">
           <section className={panel}>
-            <div className="border-b border-app-line p-4"><h2 className="text-[13px] font-bold">Pending decisions <span className="font-normal text-app-muted">({items.length}{offset + 100 < total ? "+" : ""})</span></h2><p className="mt-1 text-2xs text-app-muted">Saved workflow history · newest first</p></div>
+            <div className="border-b border-app-line p-4"><h2 className="text-[13px] font-bold">Legacy workspace decisions <span className="font-normal text-app-muted">({items.length}{offset + 100 < total ? "+" : ""})</span></h2><p className="mt-1 text-2xs text-app-muted">Saved workflow history · newest first</p></div>
             {loading && !items.length ? <p className="flex items-center justify-center gap-2 p-10 text-xs text-app-muted"><LoaderCircle size={16} className="animate-spin"/>Loading queue…</p>
-              : !items.length ? <div className="px-5 py-12 text-center"><Check size={25} className="mx-auto text-status-green"/><p className="mt-3 text-sm font-semibold">No pending approvals</p><p className="mt-1 text-xs text-app-muted">Workflow checkpoints will appear here when your decision is needed.</p></div>
+              : !items.length ? <div className="px-5 py-12 text-center"><Check size={25} className="mx-auto text-status-green"/><p className="mt-3 text-sm font-semibold">No pending legacy workspace approvals</p><p className="mt-1 text-xs text-app-muted">Workflow checkpoints will appear here when your decision is needed.</p></div>
               : <div className="max-h-170 overflow-y-auto p-2">{items.map((item) => (
                 <button type="button" key={item.thread_id} onClick={() => chooseRun(item.thread_id)} className={`flex w-full items-start gap-3 rounded-lg p-3 text-left transition-colors hover:bg-app-row-hover ${selectedId === item.thread_id ? "bg-app-panel3" : ""}`}>
                   <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-app-text">{short(item.task_description)}</p><p className="mt-1 text-2xs capitalize text-status-amber">{label(item.status)}</p><p className="mt-2 font-mono text-micro text-app-dim">{item.thread_id.slice(0, 8)} · {new Date(item.updated_at).toLocaleDateString()}</p></div><ChevronRight size={15} className="shrink-0 text-app-muted"/>

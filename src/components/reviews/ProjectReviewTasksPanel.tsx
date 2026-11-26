@@ -21,6 +21,7 @@ import {
   getProjectReviewTasks,
   type ProjectReviewTask,
 } from "../../Api/ProjectReviewTasks";
+import { decideProjectPlan } from "../../Api/ProjectWorkflows";
 
 import { useActiveProjectId } from "../../store/useActiveProjectId";
 import { useAuthStore } from "../../store/useAuthStore";
@@ -281,8 +282,39 @@ const ProjectReviewTasksPanel = () => {
     }
   };
 
+  const decidePlan = async (
+    task: ProjectReviewTask,
+    status: "approved" | "rejected",
+  ) => {
+    if (!token || !projectId || busyTaskId || !task.plan ||
+        !task.is_current_snapshot || task.plan_decision !== "pending") return;
+    if (!window.confirm(
+      `Confirm ${status} decision for this saved plan? This does not run code or edit files.`,
+    )) return;
+
+    setBusyTaskId(task.id);
+    setErrorData(null);
+    try {
+      const updated = await decideProjectPlan(token, projectId, task, status);
+      setTaskData((previous) => previous?.projectId === projectId
+        ? {
+            ...previous,
+            items: previous.items.map((item) => item.id === updated.id ? updated : item),
+          }
+        : previous);
+    } catch {
+      setErrorData({
+        projectId,
+        message: "Plan decision was not saved. Refresh the task and retry.",
+      });
+    } finally {
+      setBusyTaskId(null);
+    }
+  };
+
   const createPatch = async (task: ProjectReviewTask) => {
-    if (!token || !projectId || busyTaskId || !task.plan) {
+    if (!token || !projectId || busyTaskId || !task.plan ||
+        task.plan_decision !== "approved") {
       return;
     }
 
@@ -652,7 +684,34 @@ const ProjectReviewTasksPanel = () => {
                 </div>
               )}
 
-              {task.plan && task.is_current_snapshot && !task.patch && (
+              {task.plan && task.is_current_snapshot &&
+                task.plan_decision === "pending" && (
+                <div className="mt-3 rounded-lg border border-status-amber-line bg-status-amber-bg p-3">
+                  <p className="text-xs font-semibold text-status-amber">
+                    Implementation plan awaiting approval
+                  </p>
+                  <p className="mt-1 text-2xs text-app-muted">
+                    Inspect the saved plan before making an explicit decision.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" disabled={busyTaskId !== null}
+                      onClick={() => void decidePlan(task, "approved")}
+                      className="btn btn-primary text-xs">Approve plan</button>
+                    <button type="button" disabled={busyTaskId !== null}
+                      onClick={() => void decidePlan(task, "rejected")}
+                      className="btn text-xs">Reject plan</button>
+                  </div>
+                </div>
+              )}
+
+              {task.plan && task.plan_decision === "rejected" && (
+                <p className="mt-3 text-xs text-status-amber">
+                  This implementation plan was rejected; patch generation is disabled.
+                </p>
+              )}
+
+              {task.plan && task.plan_decision === "approved" &&
+               task.is_current_snapshot && !task.patch && (
                 <div className="mt-3">
                   <button
                     type="button"

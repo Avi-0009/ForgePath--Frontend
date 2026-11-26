@@ -17,6 +17,8 @@ export type ProjectReviewTask = {
   plan: ProjectTaskPlan | null;
   planning_error: string | null;
   planned_at: string | null;
+  plan_decision: "pending" | "approved" | "rejected" | null;
+  plan_decided_at: string | null;
   patch_status:
     | "not_started"
     | "generating"

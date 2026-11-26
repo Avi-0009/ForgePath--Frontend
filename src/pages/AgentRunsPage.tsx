@@ -27,6 +27,7 @@ import {
 import { useAuthStore } from "../store/useAuthStore";
 import { getLatestProjectReview, type ProjectReview } from "../Api/ProjectActivation";
 import { useActiveProjectId } from "../store/useActiveProjectId";
+import ProjectWorkflowQueue from "../components/engineering/ProjectWorkflowQueue";
 
 const approvalStatuses = new Set<WorkflowStatus>([
   "awaiting_plan_approval",
@@ -345,6 +346,8 @@ export default function AgentRunsPage() {
             </button>
           </div>
         </div>
+
+        <ProjectWorkflowQueue mode="runs" />
 
         {/* Choose run */}
         <section className={panelClass}>
