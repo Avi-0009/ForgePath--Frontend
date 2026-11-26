@@ -127,6 +127,7 @@ Folder selection does not grant the backend arbitrary disk access. The browser r
 ## Client state and privacy
 
 - Authentication and private workspace state are scoped to the current user.
+- React Query caches are recreated per authenticated account and cleared when that account scope unmounts.
 - Private workspace results are not persisted to local storage.
 - Logout and direct account switches clear private state and invalidate outstanding requests.
 - Every user-facing sign-out action asks the backend to revoke its HTTP-only refresh session before clearing local authentication state.
@@ -134,6 +135,7 @@ Folder selection does not grant the backend arbitrary disk access. The browser r
 - Local storage contains only the current user's active project identifier.
 - Backend-owned project sessions remain discoverable across browsers; browser folder handles remain device-local in IndexedDB.
 - IndexedDB may contain browser folder handles, not source contents or API keys.
+- Remembered folder records must match both the authenticated user ID and the user/project ownership key before they are displayed.
 - Provider keys exist only in the password input until submission; the frontend never persists them and the backend never returns them.
 - Authenticated API calls perform at most one account-safe token refresh and never retry under a different account.
 - Profile updates are normalized and validated by the backend; email changes are intentionally excluded so verification cannot be bypassed.

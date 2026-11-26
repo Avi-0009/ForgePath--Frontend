@@ -53,6 +53,8 @@ sessionStorage.setItem("forgepath-workspace", JSON.stringify({ state: { patchRes
 const { useAuthStore } = await import("../src/store/useAuthStore.ts");
 const { useWorkspaceStore, createWorkspaceRequestGuard } = await import("../src/store/useWorkspaceStore.ts");
 const { getActiveProjectId, setActiveProjectId } = await import("../src/store/useActiveProjectId.ts");
+const { createAccountQueryClient } = await import("../src/store/accountQueryClient.ts");
+const { filterSavedFoldersForUser } = await import("../src/components/repositories/SavedFolderAccess.ts");
 const alice = { id: "alice", name: "Alice", username: "alice", email: "alice@example.test" };
 const bob = { ...alice, id: "bob", username: "bob" };
 const privateState = {
@@ -122,4 +124,27 @@ test("active project sessions persist independently for each account", () => {
   assert.equal(getActiveProjectId(alice.id), null);
   assert.equal(getActiveProjectId(bob.id), "project-bob");
   setActiveProjectId(bob.id, null);
+});
+
+test("query caches are physically separate across accounts", () => {
+  const aliceCache = createAccountQueryClient();
+  aliceCache.setQueryData(["private-projects"], ["alice-private-project"]);
+  const bobCache = createAccountQueryClient();
+  assert.equal(bobCache.getQueryData(["private-projects"]), undefined);
+  assert.deepEqual(aliceCache.getQueryData(["private-projects"]), ["alice-private-project"]);
+  aliceCache.clear();
+  bobCache.clear();
+});
+
+test("remembered folder handles reject foreign and malformed ownership keys", () => {
+  const handle = { name: "project" };
+  const entries = [
+    { id: "alice:project-a", userId: "alice", projectId: "project-a", folderName: "A", handle },
+    { id: "bob:project-b", userId: "bob", projectId: "project-b", folderName: "B", handle },
+    { id: "bob:project-c", userId: "alice", projectId: "project-c", folderName: "corrupt", handle },
+  ];
+  assert.deepEqual(
+    filterSavedFoldersForUser(entries, "alice").map((entry) => entry.projectId),
+    ["project-a"],
+  );
 });

@@ -8,6 +8,14 @@ export type SavedFolderAccess = {
   handle: FileSystemDirectoryHandle;
 };
 
+export const filterSavedFoldersForUser = (
+  entries: SavedFolderAccess[],
+  userId: string,
+): SavedFolderAccess[] => entries.filter((entry) =>
+  entry.userId === userId &&
+  entry.id === `${userId}:${entry.projectId}`
+);
+
 const DATABASE_NAME = "forgepath-folder-permissions";
 const STORE_NAME = "folders";
 
@@ -45,8 +53,10 @@ const transact = async <T>(
 };
 
 export const listSavedFolders = async (userId: string): Promise<SavedFolderAccess[]> =>
-  (await transact("readonly", (store) => store.getAll()) as SavedFolderAccess[])
-    .filter((entry) => entry.userId === userId);
+  filterSavedFoldersForUser(
+    await transact("readonly", (store) => store.getAll()) as SavedFolderAccess[],
+    userId,
+  );
 
 export const getSavedFolder = async (
   userId: string,
