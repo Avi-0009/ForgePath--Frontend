@@ -21,6 +21,7 @@ import InvestigationPage from "./pages/InvestigationPage";
 import PatchReviewPage from "./pages/PatchReviewPage";
 import TestLabPage from "./pages/TestLabPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 import { useAuthStore } from "./store/useAuthStore";
 import {
@@ -92,6 +93,7 @@ const App = () => (
       />
 
       <Route path={ACCOUNT_ROUTES.profile} element={<ProfilePage />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Route>
   </Routes>
 );

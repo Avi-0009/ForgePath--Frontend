@@ -4,13 +4,16 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import AccountScopedQueryCache from './components/auth/AccountScopedQueryCache.tsx'
+import AppErrorBoundary from './components/errors/AppErrorBoundary.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AccountScopedQueryCache>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </AccountScopedQueryCache>
+    <AppErrorBoundary>
+      <AccountScopedQueryCache>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </AccountScopedQueryCache>
+    </AppErrorBoundary>
   </StrictMode>,
 )

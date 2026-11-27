@@ -1,4 +1,5 @@
 import { apiClient } from "./Auth";
+import { requestWithTokenRefresh } from "./AuthenticatedRequest";
 
 export interface FileNode {
   name: string;
@@ -13,11 +14,13 @@ export interface FileNode {
 export const GetWorkspaceTree = async (
   token: string,
 ): Promise<FileNode> => {
-  return apiClient
-    .get("workspace/tree", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-    .json<FileNode>();
+  return requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .get("workspace/tree", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      .json<FileNode>(),
+  );
 };

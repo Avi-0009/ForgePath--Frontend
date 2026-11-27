@@ -1,4 +1,5 @@
 import { apiClient } from "./Auth";
+import { requestWithTokenRefresh } from "./AuthenticatedRequest";
 
 export interface CodeReviewFileRequest {
   workspace_root: string;
@@ -37,15 +38,17 @@ export const InitiateCodeReview = async (
   token: string,
   data: CodeReviewFileRequest
 ): Promise<CodeReviewFileResponse> => {
-  return apiClient
-    .post("code-review/file", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      json: data,
-      timeout: 270_000,
-    })
-    .json<CodeReviewFileResponse>();
+  return requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .post("code-review/file", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        json: data,
+        timeout: 270_000,
+      })
+      .json<CodeReviewFileResponse>(),
+  );
 };
 
 export interface ProjectInvestigationFiles {
@@ -57,19 +60,23 @@ export interface ProjectInvestigationFiles {
 export const GetProjectInvestigationFiles = (
   token: string,
   projectId: string,
-) => apiClient.get(`projects/${projectId}/investigation/files`, {
-  headers: { Authorization: `Bearer ${token}` },
-}).json<ProjectInvestigationFiles>();
+) => requestWithTokenRefresh(token, (accessToken) =>
+  apiClient.get(`projects/${projectId}/investigation/files`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  }).json<ProjectInvestigationFiles>(),
+);
 
 export const InvestigateProjectFile = (
   token: string,
   projectId: string,
   data: { relative_path: string; review_mode: CodeReviewFileRequest["review_mode"] },
-) => apiClient.post(`projects/${projectId}/investigation`, {
-  headers: { Authorization: `Bearer ${token}` },
-  json: data,
-  timeout: 270_000,
-}).json<CodeReviewFileResponse>();
+) => requestWithTokenRefresh(token, (accessToken) =>
+  apiClient.post(`projects/${projectId}/investigation`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    json: data,
+    timeout: 270_000,
+  }).json<CodeReviewFileResponse>(),
+);
 
 export interface QuestionInvestigationPreview {
   project_id: string;
@@ -101,18 +108,22 @@ export interface QuestionInvestigationReport {
 
 export const PreviewProjectInvestigation = (
   token: string, projectId: string, question: string, maxFiles: number,
-) => apiClient.post(`projects/${projectId}/investigation/preview`, {
-  headers: { Authorization: `Bearer ${token}` },
-  json: { question, max_files: maxFiles },
-}).json<QuestionInvestigationPreview>();
+) => requestWithTokenRefresh(token, (accessToken) =>
+  apiClient.post(`projects/${projectId}/investigation/preview`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    json: { question, max_files: maxFiles },
+  }).json<QuestionInvestigationPreview>(),
+);
 
 export const InvestigateProjectQuestion = (
   token: string, projectId: string, question: string, maxFiles: number, snapshotId: string,
-) => apiClient.post(`projects/${projectId}/investigation/question`, {
-  headers: { Authorization: `Bearer ${token}` },
-  json: { question, max_files: maxFiles, expected_snapshot_id: snapshotId },
-  timeout: 270_000,
-}).json<QuestionInvestigationReport>();
+) => requestWithTokenRefresh(token, (accessToken) =>
+  apiClient.post(`projects/${projectId}/investigation/question`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    json: { question, max_files: maxFiles, expected_snapshot_id: snapshotId },
+    timeout: 270_000,
+  }).json<QuestionInvestigationReport>(),
+);
 
 // Context-aware investigation is version-pinned. Legacy question endpoints
 // remain available, but the investigation page uses this evidence-rich API.
@@ -169,24 +180,28 @@ export interface ContextInvestigationReport extends Omit<
 
 export const PreviewContextInvestigation = (
   token: string, projectId: string, question: string, maxFiles: number,
-) => apiClient.post(`projects/${encodeURIComponent(projectId)}/investigation/context/preview`, {
-  headers: { Authorization: `Bearer ${token}` },
-  json: { question, max_files: maxFiles },
-}).json<ContextInvestigationPreview>();
+) => requestWithTokenRefresh(token, (accessToken) =>
+  apiClient.post(`projects/${encodeURIComponent(projectId)}/investigation/context/preview`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    json: { question, max_files: maxFiles },
+  }).json<ContextInvestigationPreview>(),
+);
 
 export const RunContextInvestigation = (
   token: string, projectId: string, question: string, maxFiles: number,
   snapshotId: string, useSemanticIndex: boolean,
-) => apiClient.post(`projects/${encodeURIComponent(projectId)}/investigation/context/run`, {
-  headers: { Authorization: `Bearer ${token}` },
-  json: {
-    question,
-    max_files: maxFiles,
-    expected_snapshot_id: snapshotId,
-    use_semantic_index: useSemanticIndex,
-  },
-  timeout: 270_000,
-}).json<ContextInvestigationReport>();
+) => requestWithTokenRefresh(token, (accessToken) =>
+  apiClient.post(`projects/${encodeURIComponent(projectId)}/investigation/context/run`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    json: {
+      question,
+      max_files: maxFiles,
+      expected_snapshot_id: snapshotId,
+      use_semantic_index: useSemanticIndex,
+    },
+    timeout: 270_000,
+  }).json<ContextInvestigationReport>(),
+);
 
 export interface CodePatchRequest {
   workspace_root: string;
@@ -219,15 +234,17 @@ export const GenerateCodePatch = async (
   token: string,
   data: CodePatchRequest
 ): Promise<CodePatchResponse> => {
-  return apiClient
-    .post("code-patch", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      json: data,
-      timeout: 270_000,
-    })
-    .json<CodePatchResponse>();
+  return requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .post("code-patch", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        json: data,
+        timeout: 270_000,
+      })
+      .json<CodePatchResponse>(),
+  );
 };
 
 export interface CodePatchApplyRequest {
@@ -254,13 +271,15 @@ export const ApplyCodePatch = async (
   token: string,
   data: CodePatchApplyRequest
 ): Promise<CodePatchApplyResponse> => {
-  return apiClient
-    .post("code-patch/apply", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      json: data,
-      timeout: 60_000,
-    })
-    .json<CodePatchApplyResponse>();
+  return requestWithTokenRefresh(token, (accessToken) =>
+    apiClient
+      .post("code-patch/apply", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        json: data,
+        timeout: 60_000,
+      })
+      .json<CodePatchApplyResponse>(),
+  );
 };
