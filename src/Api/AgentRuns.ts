@@ -1,12 +1,10 @@
-import { HTTPError } from "ky";
-
 import { apiClient } from "./Auth";
+import { requestWithTokenRefresh } from "./AuthenticatedRequest";
 import {
   getTaskHistory,
   type TaskHistoryItem,
   type WorkflowStatus,
 } from "./Tasks";
-import { useAuthStore } from "../store/useAuthStore";
 
 export type { TaskHistoryItem, WorkflowStatus };
 
@@ -90,27 +88,8 @@ export async function getAgentRunDetail(
   threadId: string,
   token: string,
 ): Promise<WorkflowDetail> {
-  const currentToken =
-    useAuthStore.getState().token || token;
-
-  try {
-    return await requestDetail(threadId, currentToken);
-  } catch (error) {
-    if (
-      !(error instanceof HTTPError) ||
-      error.response.status !== 401
-    ) {
-      throw error;
-    }
-
-    await getTaskHistory(currentToken, 0, 1);
-
-    const refreshedToken = useAuthStore.getState().token;
-
-    if (!refreshedToken) {
-      throw error;
-    }
-
-    return requestDetail(threadId, refreshedToken);
-  }
+  return requestWithTokenRefresh(
+    token,
+    (accessToken) => requestDetail(threadId, accessToken),
+  );
 }

@@ -1,8 +1,7 @@
 import { HTTPError } from "ky";
 
 import { apiClient } from "./Auth";
-import { getTaskHistory } from "./Tasks";
-import { useAuthStore } from "../store/useAuthStore";
+import { requestWithTokenRefresh } from "./AuthenticatedRequest";
 import type { WorkflowDetail } from "./AgentRuns";
 
 export type TestRunner = "pytest" | "npm" | "go";
@@ -24,25 +23,7 @@ export interface TestExecutionResult {
   finished_at: string;
 }
 
-const authenticated = async <T,>(
-  token: string,
-  operation: (validToken: string) => Promise<T>,
-): Promise<T> => {
-  const initial = useAuthStore.getState().token || token;
-  try {
-    return await operation(initial);
-  } catch (error) {
-    if (!(error instanceof HTTPError) || error.response.status !== 401) {
-      throw error;
-    }
-    const latest = useAuthStore.getState().token;
-    if (latest && latest !== initial) return operation(latest);
-    await getTaskHistory(initial, 0, 1); // Existing single-flight refresh.
-    const refreshed = useAuthStore.getState().token;
-    if (!refreshed) throw error;
-    return operation(refreshed);
-  }
-};
+const authenticated = requestWithTokenRefresh;
 
 export const executeLocalTests = async (
   token: string,

@@ -1,9 +1,8 @@
 import { HTTPError } from "ky";
 
 import { apiClient } from "./Auth";
-import { getTaskHistory } from "./Tasks";
+import { requestWithTokenRefresh } from "./AuthenticatedRequest";
 import type { FileNode } from "./Workspace";
-import { useAuthStore } from "../store/useAuthStore";
 
 export interface CodebaseSource {
   name: string;
@@ -33,40 +32,7 @@ export interface CodeSearchRequest {
   top_k?: number;
 }
 
-const withAuthentication = async <T>(
-  token: string,
-  request: (accessToken: string) => Promise<T>,
-): Promise<T> => {
-  const initialToken = useAuthStore.getState().token || token;
-
-  try {
-    return await request(initialToken);
-  } catch (error) {
-    if (
-      !(error instanceof HTTPError) ||
-      error.response.status !== 401
-    ) {
-      throw error;
-    }
-
-    const latestToken = useAuthStore.getState().token;
-
-    if (latestToken && latestToken !== initialToken) {
-      return request(latestToken);
-    }
-
-    // Reuse the existing refresh/rotation behavior.
-    await getTaskHistory(initialToken, 0, 1);
-
-    const refreshedToken = useAuthStore.getState().token;
-
-    if (!refreshedToken) {
-      throw error;
-    }
-
-    return request(refreshedToken);
-  }
-};
+const withAuthentication = requestWithTokenRefresh;
 
 export const getCodebaseSources = async (
   token: string,
