@@ -233,11 +233,32 @@ The current production build succeeds but reports a bundle-size warning. Route-l
 
 ## Deployment
 
+The backend repository's Compose stack builds this repository with `npm ci`, serves
+the optimized assets from an unprivileged nginx container, proxies `/api` to
+FastAPI, supports SPA direct navigation, and applies baseline security headers.
+
+From `ForgePath--Backend`:
+
+```powershell
+docker compose config --quiet
+docker compose build backend frontend
+docker compose up -d db
+docker compose run --rm migrate
+docker compose up -d
+docker compose ps
+```
+
+The loopback Docker frontend uses `http://127.0.0.1:5173`, so trusted local Docker
+development requires `REFRESH_COOKIE_SECURE=false`. Production deployments must
+terminate HTTPS before the frontend container and keep `REFRESH_COOKIE_SECURE=true`.
+
+For an independent deployment:
+
 1. Run `npm ci` and `npm run build` in CI.
 2. Serve `dist/` from an HTTPS static host or reverse proxy.
-3. Route the API base to ForgePath Backend.
+3. Route `/api` to ForgePath Backend with at least a 300-second upstream timeout.
 4. Configure SPA fallback to `index.html`.
-5. Apply a restrictive Content Security Policy compatible with deployed assets and the API origin.
+5. Apply a restrictive Content Security Policy compatible with deployed assets.
 6. Keep source maps and logs free of tokens, private source, and provider credentials.
 
 ## Related repository
