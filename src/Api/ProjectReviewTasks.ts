@@ -109,7 +109,7 @@ export const getProjectReviewTasks = (
 ) =>
   requestWithTokenRefresh(token, (accessToken) =>
     apiClient
-      .get(`projects/${projectId}/tasks`, {
+      .get(`projects/${encodeURIComponent(projectId)}/tasks`, {
         headers: headers(accessToken),
         searchParams: {
           limit,
@@ -128,7 +128,7 @@ export const createProjectReviewTask = (
 ) =>
   requestWithTokenRefresh(token, (accessToken) =>
     apiClient
-      .post(`projects/${projectId}/tasks`, {
+      .post(`projects/${encodeURIComponent(projectId)}/tasks`, {
         headers: headers(accessToken),
         json: {
           review_id: reviewId,
@@ -146,7 +146,7 @@ export const decideProjectReviewTask = (
 ) =>
   requestWithTokenRefresh(token, (accessToken) =>
     apiClient
-      .patch(`projects/${projectId}/tasks/${taskId}`, {
+      .patch(`projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}`, {
         headers: headers(accessToken),
         json: { status: decision },
       })
@@ -161,7 +161,7 @@ export const createProjectReviewTaskPlan = (
 ) =>
   requestWithTokenRefresh(token, (accessToken) =>
     apiClient
-      .post(`projects/${projectId}/tasks/${task.id}/plan`, {
+      .post(`projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(task.id)}/plan`, {
         headers: headers(accessToken),
         json: {
           expected_snapshot_id: task.snapshot_id,
@@ -182,7 +182,7 @@ export const createProjectReviewTaskPatch = (
 
   return requestWithTokenRefresh(token, (accessToken) =>
     apiClient
-      .post(`projects/${projectId}/tasks/${task.id}/patch`, {
+      .post(`projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(task.id)}/patch`, {
         headers: headers(accessToken),
         json: {
           expected_snapshot_id: task.snapshot_id,
@@ -205,7 +205,7 @@ export const decideProjectReviewTaskPatch = (
 
   return requestWithTokenRefresh(token, (accessToken) =>
     apiClient
-      .patch(`projects/${projectId}/tasks/${task.id}/patch`, {
+      .patch(`projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(task.id)}/patch`, {
         headers: headers(accessToken),
         json: {
           status: decision,
@@ -224,7 +224,7 @@ export const downloadProjectReviewTaskPatch = (
 ) =>
   requestWithTokenRefresh(token, (accessToken) =>
     apiClient
-      .get(`projects/${projectId}/tasks/${taskId}/patch/download`, {
+      .get(`projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/patch/download`, {
         headers: headers(accessToken),
         cache: "no-store",
       })
@@ -238,7 +238,7 @@ export const prepareProjectReviewTaskPatchApplication = (
 ) => {
   if (!task.patch) throw new Error("An approved patch proposal is required.");
   return requestWithTokenRefresh(token, (accessToken) =>
-    apiClient.post(`projects/${projectId}/tasks/${task.id}/patch/application`, {
+    apiClient.post(`projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(task.id)}/patch/application`, {
       headers: headers(accessToken),
       json: {
         expected_snapshot_id: task.snapshot_id,

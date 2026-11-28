@@ -61,7 +61,7 @@ export const GetProjectInvestigationFiles = (
   token: string,
   projectId: string,
 ) => requestWithTokenRefresh(token, (accessToken) =>
-  apiClient.get(`projects/${projectId}/investigation/files`, {
+  apiClient.get(`projects/${encodeURIComponent(projectId)}/investigation/files`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   }).json<ProjectInvestigationFiles>(),
 );
@@ -71,7 +71,7 @@ export const InvestigateProjectFile = (
   projectId: string,
   data: { relative_path: string; review_mode: CodeReviewFileRequest["review_mode"] },
 ) => requestWithTokenRefresh(token, (accessToken) =>
-  apiClient.post(`projects/${projectId}/investigation`, {
+  apiClient.post(`projects/${encodeURIComponent(projectId)}/investigation`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     json: data,
     timeout: 270_000,
@@ -109,7 +109,7 @@ export interface QuestionInvestigationReport {
 export const PreviewProjectInvestigation = (
   token: string, projectId: string, question: string, maxFiles: number,
 ) => requestWithTokenRefresh(token, (accessToken) =>
-  apiClient.post(`projects/${projectId}/investigation/preview`, {
+  apiClient.post(`projects/${encodeURIComponent(projectId)}/investigation/preview`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     json: { question, max_files: maxFiles },
   }).json<QuestionInvestigationPreview>(),
@@ -118,7 +118,7 @@ export const PreviewProjectInvestigation = (
 export const InvestigateProjectQuestion = (
   token: string, projectId: string, question: string, maxFiles: number, snapshotId: string,
 ) => requestWithTokenRefresh(token, (accessToken) =>
-  apiClient.post(`projects/${projectId}/investigation/question`, {
+  apiClient.post(`projects/${encodeURIComponent(projectId)}/investigation/question`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     json: { question, max_files: maxFiles, expected_snapshot_id: snapshotId },
     timeout: 270_000,

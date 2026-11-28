@@ -132,7 +132,7 @@ Folder selection does not grant the backend arbitrary disk access. The browser r
 - Logout and direct account switches clear private state and invalidate outstanding requests.
 - Every user-facing sign-out action asks the backend to revoke its HTTP-only refresh session before clearing local authentication state.
 - Late responses from a previous session cannot restore cleared data.
-- Local storage contains only the current user's active project identifier.
+- Local storage contains per-account active project identifiers and the non-sensitive `forgepath-signed-out` marker, which prevents automatic session restoration after explicit sign-out. Authentication tokens and private source contents are not stored there.
 - Backend-owned project sessions remain discoverable across browsers; browser folder handles remain device-local in IndexedDB.
 - IndexedDB may contain browser folder handles, not source contents or API keys.
 - Remembered folder records must match both the authenticated user ID and the user/project ownership key before they are displayed.

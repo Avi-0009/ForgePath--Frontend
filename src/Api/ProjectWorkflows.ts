@@ -56,7 +56,7 @@ export const decideProjectPlan = (
   const planId = task.plan.plan_id;
   return requestWithTokenRefresh(token, (accessToken) =>
     apiClient.patch(
-      `project-workflows/${projectId}/tasks/${task.id}/plan/decision`,
+      `project-workflows/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(task.id)}/plan/decision`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
         json: {
