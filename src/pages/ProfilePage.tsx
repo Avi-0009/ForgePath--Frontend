@@ -4,6 +4,8 @@ import { useAuthStore } from "../store/useAuthStore";
 import { Logout, RequestEmailVerification, VerifyEmailOtp } from "../Api/Auth";
 import { updateProfile } from "../Api/Profile";
 import { revokeAndClearSession } from "../services/signOut";
+import { createWorkspaceRequestGuard } from "../store/useWorkspaceStore";
+import { requestWithTokenRefresh } from "../Api/AuthenticatedRequest";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -45,61 +47,118 @@ const ProfilePage = () => {
     e.preventDefault();
     if (!user || !token) return;
 
+    const isCurrent = createWorkspaceRequestGuard();
+
     let payload;
+
     try {
       payload = buildProfileUpdatePayload(name, username);
     } catch (error) {
-      return toast.error(error instanceof Error ? error.message : "Invalid profile details.");
+      return toast.error(
+        error instanceof Error
+          ? error.message
+          : "Invalid profile details."
+      );
     }
-    
+
     setIsSubmitting(true);
+
     try {
       const updated = await updateProfile(token, payload);
+
+      if (!isCurrent()) return;
+
       const storeUpdate = profileStoreUpdate(
         user.id,
         useAuthStore.getState().user?.id,
         updated,
       );
+
       if (!storeUpdate) return;
+
       updateUser(storeUpdate);
       setName(updated.full_name);
       setUsername(updated.username);
+
       toast.success("Profile updated successfully");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update your profile.");
+      if (!isCurrent()) return;
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not update your profile."
+      );
     } finally {
-      setIsSubmitting(false);
+      if (isCurrent()) {
+        setIsSubmitting(false);
+      }
     }
   };
 
   const handleSendVerification = async () => {
-    if (!token) return toast.error("Authentication required");
-    
+    if (!user || !token) {
+      return toast.error("Authentication required");
+    }
+
+    const isCurrent = createWorkspaceRequestGuard();
+
     try {
-      await RequestEmailVerification(token);
+      await requestWithTokenRefresh(
+        token,
+        RequestEmailVerification,
+      );
+
+      if (!isCurrent()) return;
+
       setShowOtpVerify(true);
       toast.success(`Verification code sent to ${email}`);
     } catch {
+      if (!isCurrent()) return;
+
       toast.error("Failed to request verification code.");
     }
   };
 
   const handleVerifyOtp = async () => {
-    if (otp.length < 6) return toast.error("Please enter a valid 6-digit OTP");
-    if (!token) return toast.error("Authentication required");
-    
-    setIsVerifying(true);
-    try {
-      await VerifyEmailOtp(token, otp);
+    if (!/^\d{6}$/.test(otp)) {
+      return toast.error("Please enter a valid 6-digit OTP");
+    }
 
-      toast.success("Email verified successfully!");
+    if (!user || !token) {
+      return toast.error("Authentication required");
+    }
+
+    const isCurrent = createWorkspaceRequestGuard();
+
+    setIsVerifying(true);
+
+    try {
+      await requestWithTokenRefresh(
+        token,
+        (accessToken) => VerifyEmailOtp(accessToken, otp),
+      );
+
+      if (!isCurrent()) return;
+
+      if (useAuthStore.getState().user?.id !== user.id) {
+        return;
+      }
+
+      updateUser({ is_email_verified: true });
+
       setShowOtpVerify(false);
       setOtp("");
-      updateUser({ is_email_verified: true });
+
+      toast.success("Email verified successfully!");
     } catch {
+      if (!isCurrent()) return;
+
       toast.error("Invalid verification code or code expired.");
     } finally {
-      setIsVerifying(false);
+      if (isCurrent()) {
+        setIsVerifying(false);
+      }
     }
   };
 

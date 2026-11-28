@@ -3,6 +3,7 @@ import { HTTPError } from "ky";
 import { apiClient, type LoginResponse } from "./Auth";
 import { createSessionRequestCoordinator } from "./SessionRequestCoordinator";
 import { useAuthStore } from "../store/useAuthStore";
+import { useWorkspaceStore } from "../store/useWorkspaceStore";
 
 const isUnauthorized = (error: unknown): boolean =>
   error instanceof HTTPError &&
@@ -11,9 +12,12 @@ const isUnauthorized = (error: unknown): boolean =>
 const coordinator = createSessionRequestCoordinator({
   getSession: () => {
     const state = useAuthStore.getState();
+
     return {
       userId: state.user?.id ?? null,
       token: state.token,
+      sessionVersion:
+        useWorkspaceStore.getState().sessionVersion,
     };
   },
   refresh: async () => {

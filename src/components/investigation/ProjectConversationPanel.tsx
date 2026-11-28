@@ -11,28 +11,13 @@ import {
   type ProjectConversationPreview,
   type ProjectConversationThread,
 } from "../../Api/ProjectConversations";
-import { getTaskHistory } from "../../Api/Tasks";
-import { useAuthStore } from "../../store/useAuthStore";
 
 type Props = { token: string; projectId: string };
 
-const withAuthentication = async <T,>(
+const withAuthentication = <T,>(
   token: string,
   action: (accessToken: string) => Promise<T>,
-): Promise<T> => {
-  const first = useAuthStore.getState().token || token;
-  try {
-    return await action(first);
-  } catch (error) {
-    if (!(error instanceof HTTPError) || error.response.status !== 401) throw error;
-    const current = useAuthStore.getState().token;
-    if (current && current !== first) return action(current);
-    await getTaskHistory(first, 0, 1);
-    const refreshed = useAuthStore.getState().token;
-    if (!refreshed) throw error;
-    return action(refreshed);
-  }
-};
+): Promise<T> => action(token);
 
 const explainError = async (error: unknown): Promise<string> => {
   if (error instanceof HTTPError) {
@@ -234,7 +219,7 @@ const ProjectConversationPanel = ({ token, projectId }: Props) => {
                   </p>
                 )}
                 {thread.turns.length > 0 && (
-                  <div className="max-h-[34rem] space-y-3 overflow-y-auto rounded-lg border border-app-line bg-app-bg p-3">
+                  <div className="max-h-136 space-y-3 overflow-y-auto rounded-lg border border-app-line bg-app-bg p-3">
                     {thread.turns.map((turn) => (
                       <div key={turn.ordinal} className="space-y-2 rounded-lg border border-app-line bg-app-panel2 p-3">
                         <p className="text-xs font-semibold">{turn.ordinal}. {turn.question}</p>

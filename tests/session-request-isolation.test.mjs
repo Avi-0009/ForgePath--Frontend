@@ -40,52 +40,97 @@ const deferred = () => {
 };
 
 const createHarness = (refresh) => {
-  let session = { userId: "account-a", token: "token-a" };
+  let session = {
+    userId: "account-a",
+    token: "token-a",
+    sessionVersion: 1,
+  };
+
   let clearCount = 0;
 
   const coordinator = createSessionRequestCoordinator({
     getSession: () => session,
     refresh,
+
     applyRefresh: (result) => {
       session = {
+        ...session,
         userId: result.userId,
         token: result.accessToken,
       };
     },
+
     clearSession: () => {
       clearCount += 1;
-      session = { userId: null, token: null };
+
+      session = {
+        userId: null,
+        token: null,
+        sessionVersion: session.sessionVersion + 1,
+      };
     },
-    isUnauthorized: (error) => error instanceof UnauthorizedError,
+
+    isUnauthorized: (error) =>
+      error instanceof UnauthorizedError,
   });
 
   return {
     coordinator,
     getSession: () => session,
-    setSession: (next) => { session = next; },
+    setSession: (next) => {
+      session = {
+        sessionVersion: session.sessionVersion + 1,
+        ...next,
+      };
+    },
     getClearCount: () => clearCount,
   };
 };
 
+
 test("a stale failed refresh cannot log out a newly signed-in account", async () => {
   const refresh = deferred();
-  const harness = createHarness(() => refresh.promise);
-  const request = harness.coordinator.requestWithTokenRefresh(
-    "token-a",
-    async () => { throw new UnauthorizedError(); },
+  const refreshStarted = deferred();
+
+  const harness = createHarness(() => {
+    refreshStarted.resolve();
+    return refresh.promise;
+  });
+
+  const request =
+    harness.coordinator.requestWithTokenRefresh(
+      "token-a",
+      async () => {
+        throw new UnauthorizedError();
+      },
+    );
+
+  const rejection = assert.rejects(
+    request,
+    /account changed/i,
   );
 
-  await Promise.resolve();
-  harness.setSession({ userId: "account-b", token: "token-b" });
-  refresh.reject(new UnauthorizedError());
+  // Wait until the refresh has actually started.
+  await refreshStarted.promise;
 
-  await assert.rejects(request, UnauthorizedError);
-  assert.equal(harness.getClearCount(), 0);
-  assert.deepEqual(harness.getSession(), {
+  harness.setSession({
     userId: "account-b",
     token: "token-b",
   });
+
+  refresh.reject(new UnauthorizedError());
+
+  await rejection;
+
+  assert.equal(harness.getClearCount(), 0);
+
+  assert.deepEqual(harness.getSession(), {
+    userId: "account-b",
+    token: "token-b",
+    sessionVersion: 2,
+  });
 });
+
 
 test("a stale request cannot retry with another account's token", async () => {
   const firstAttempt = deferred();
@@ -144,4 +189,170 @@ test("concurrent requests from one session share one token refresh", async () =>
     "second:refreshed-a",
   ]);
   assert.equal(refreshCount, 1);
+});
+
+
+test("successful responses from a previous account are rejected", async () => {
+  const response = deferred();
+
+  const harness = createHarness(async () => {
+    throw new Error("Unexpected refresh");
+  });
+
+  const request =
+    harness.coordinator.requestWithTokenRefresh(
+      "token-a",
+      () => response.promise,
+    );
+
+  harness.setSession({
+    userId: "account-b",
+    token: "token-b",
+  });
+
+  response.resolve("private account-a data");
+
+  await assert.rejects(request, /account changed/i);
+});
+
+test("successful responses cannot survive same-account re-login", async () => {
+  const response = deferred();
+
+  const harness = createHarness(async () => {
+    throw new Error("Unexpected refresh");
+  });
+
+  const request =
+    harness.coordinator.requestWithTokenRefresh(
+      "token-a",
+      () => response.promise,
+    );
+
+  harness.setSession({
+    userId: null,
+    token: null,
+  });
+
+  harness.setSession({
+    userId: "account-a",
+    token: "new-token-a",
+  });
+
+  response.resolve("previous session data");
+
+  await assert.rejects(request, /account changed/i);
+});
+
+test("previous-account tokens cannot start new requests", async () => {
+  let requestCount = 0;
+
+  const harness = createHarness(async () => {
+    throw new Error("Unexpected refresh");
+  });
+
+  harness.setSession({
+    userId: "account-b",
+    token: "token-b",
+  });
+
+  await assert.rejects(
+    harness.coordinator.requestWithTokenRefresh(
+      "token-a",
+      async () => {
+        requestCount += 1;
+      },
+    ),
+    /account changed/i,
+  );
+
+  assert.equal(requestCount, 0);
+});
+
+test("signed-out sessions cannot start authenticated requests", async () => {
+  let requestCount = 0;
+
+  const harness = createHarness(async () => {
+    throw new Error("Unexpected refresh");
+  });
+
+  harness.setSession({
+    userId: null,
+    token: null,
+  });
+
+  await assert.rejects(
+    harness.coordinator.requestWithTokenRefresh(
+      "token-a",
+      async () => {
+        requestCount += 1;
+      },
+    ),
+    /account changed/i,
+  );
+
+  assert.equal(requestCount, 0);
+});
+
+test("same-session token refresh preserves multi-step operations", async () => {
+  const harness = createHarness(async () => ({
+    userId: "account-a",
+    accessToken: "refreshed-a",
+  }));
+
+  const first =
+    await harness.coordinator.requestWithTokenRefresh(
+      "token-a",
+      async (token) => {
+        if (token === "token-a") {
+          throw new UnauthorizedError();
+        }
+
+        return token;
+      },
+    );
+
+  assert.equal(first, "refreshed-a");
+
+  const second =
+    await harness.coordinator.requestWithTokenRefresh(
+      "token-a",
+      async (token) => token,
+    );
+
+  assert.equal(second, "refreshed-a");
+});
+
+test("successful retry responses are rejected after account switching", async () => {
+  const retryStarted = deferred();
+  const retryResponse = deferred();
+
+  const harness = createHarness(async () => ({
+    userId: "account-a",
+    accessToken: "refreshed-a",
+  }));
+
+  const request =
+    harness.coordinator.requestWithTokenRefresh(
+      "token-a",
+      async (token) => {
+        if (token === "token-a") {
+          throw new UnauthorizedError();
+        }
+
+        retryStarted.resolve();
+
+        return retryResponse.promise;
+      },
+    );
+
+  await retryStarted.promise;
+
+  harness.setSession({
+    userId: "account-b",
+    token: "token-b",
+  });
+
+  retryResponse.resolve("private account-a data");
+
+  await assert.rejects(request, /account changed/i);
 });

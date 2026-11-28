@@ -25,7 +25,6 @@ import {
   type ReviewFinding,
 } from "../Api/Review";
 import { listProjects, type ActivatedProject } from "../Api/ProjectActivation";
-import { getTaskHistory } from "../Api/Tasks";
 import { useAuthStore } from "../store/useAuthStore";
 import { useActiveProjectId } from "../store/useActiveProjectId";
 import ActiveProjectReview from "../components/reviews/ActiveProjectReview";
@@ -103,37 +102,10 @@ const getErrorMessage = async (
   return error instanceof Error ? error.message : fallback;
 };
 
-const withAuthentication = async <T,>(
+const withAuthentication = <T,>(
   token: string,
   action: (accessToken: string) => Promise<T>,
-): Promise<T> => {
-  const initialToken = useAuthStore.getState().token || token;
-
-  try {
-    return await action(initialToken);
-  } catch (error) {
-    if (
-      !(error instanceof HTTPError) ||
-      error.response.status !== 401
-    ) {
-      throw error;
-    }
-
-    const currentToken = useAuthStore.getState().token;
-
-    if (currentToken && currentToken !== initialToken) {
-      return action(currentToken);
-    }
-
-    // Reuse existing session refresh behavior.
-    await getTaskHistory(initialToken, 0, 1);
-
-    const refreshedToken = useAuthStore.getState().token;
-    if (!refreshedToken) throw error;
-
-    return action(refreshedToken);
-  }
-};
+): Promise<T> => action(token);
 
 const InvestigationPage = () => {
   const token = useAuthStore((state) => state.token);

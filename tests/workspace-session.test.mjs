@@ -78,7 +78,9 @@ test("logout clears every workspace field and does not persist source", () => {
   useAuthStore.getState().logout();
   assertEmpty();
   assert.equal(sessionStorage.getItem("forgepath-workspace"), null);
-  assert.equal(JSON.parse(localStorage.getItem("forgepath-auth")).state.user, null);
+  assert.equal(localStorage.getItem("forgepath-auth"), null);
+  assert.equal(useAuthStore.getState().token, null);
+  assert.equal(useAuthStore.getState().user, null);
 });
 
 test("direct account switch clears private data and invalidates old requests", () => {
@@ -146,5 +148,193 @@ test("remembered folder handles reject foreign and malformed ownership keys", ()
   assert.deepEqual(
     filterSavedFoldersForUser(entries, "alice").map((entry) => entry.projectId),
     ["project-a"],
+  );
+});
+
+
+test("authentication credentials are never persisted", () => {
+  useAuthStore.getState().login(alice, "private-token");
+
+  assert.equal(localStorage.getItem("forgepath-auth"), null);
+  assert.equal(sessionStorage.getItem("forgepath-auth"), null);
+  assert.equal(useAuthStore.getState().token, "private-token");
+});
+
+test("explicit logout prevents automatic session restoration", async () => {
+  useAuthStore.getState().logout();
+
+  useAuthStore.setState({
+    isRestoringSession: true,
+  });
+
+  let calls = 0;
+
+  await useAuthStore.getState().restoreSession(async () => {
+    calls += 1;
+    return { user: alice, token: "old-token" };
+  });
+
+  assert.equal(calls, 0);
+  assert.equal(useAuthStore.getState().user, null);
+  assert.equal(useAuthStore.getState().token, null);
+  assert.equal(useAuthStore.getState().isRestoringSession, false);
+});
+
+test("a valid backend session is restored into memory", async () => {
+  localStorage.removeItem("forgepath-signed-out");
+
+  useAuthStore.setState({
+    isRestoringSession: true,
+  });
+
+  await useAuthStore.getState().restoreSession(async () => ({
+    user: alice,
+    token: "restored-token",
+  }));
+
+  assert.equal(useAuthStore.getState().user.id, alice.id);
+  assert.equal(useAuthStore.getState().token, "restored-token");
+  assert.equal(useAuthStore.getState().isAuthenticated, true);
+  assert.equal(useAuthStore.getState().isRestoringSession, false);
+  assert.equal(localStorage.getItem("forgepath-auth"), null);
+});
+
+test("a failed session restoration leaves the user signed out", async () => {
+  localStorage.removeItem("forgepath-signed-out");
+
+  useAuthStore.setState({
+    isRestoringSession: true,
+  });
+
+  await useAuthStore.getState().restoreSession(async () => {
+    throw new Error("Session expired");
+  });
+
+  assert.equal(useAuthStore.getState().user, null);
+  assert.equal(useAuthStore.getState().token, null);
+  assert.equal(useAuthStore.getState().isAuthenticated, false);
+  assert.equal(useAuthStore.getState().isRestoringSession, false);
+});
+
+
+test("concurrent session restoration uses only one request", async () => {
+  localStorage.removeItem("forgepath-signed-out");
+
+  useAuthStore.setState({
+    isRestoringSession: true,
+  });
+
+  let calls = 0;
+
+  const loadSession = async () => {
+    calls += 1;
+
+    return {
+      user: alice,
+      token: "restored-token",
+    };
+  };
+
+  await Promise.all([
+    useAuthStore.getState().restoreSession(loadSession),
+    useAuthStore.getState().restoreSession(loadSession),
+  ]);
+
+  assert.equal(calls, 1);
+  assert.equal(useAuthStore.getState().user.id, alice.id);
+});
+
+test("delayed session restoration cannot reverse logout", async () => {
+  localStorage.removeItem("forgepath-signed-out");
+
+  useAuthStore.setState({
+    isRestoringSession: true,
+  });
+
+  let finish;
+
+  const response = new Promise((resolve) => {
+    finish = resolve;
+  });
+
+  const pending = useAuthStore
+    .getState()
+    .restoreSession(() => response);
+
+  useAuthStore.getState().logout();
+
+  finish({
+    user: alice,
+    token: "old-token",
+  });
+
+  await pending;
+
+  assert.equal(useAuthStore.getState().user, null);
+  assert.equal(useAuthStore.getState().token, null);
+  assert.equal(
+    useAuthStore.getState().isAuthenticated,
+    false,
+  );
+});
+
+test("delayed session restoration cannot overwrite a new account", async () => {
+  localStorage.removeItem("forgepath-signed-out");
+
+  useAuthStore.setState({
+    isRestoringSession: true,
+  });
+
+  let finish;
+
+  const response = new Promise((resolve) => {
+    finish = resolve;
+  });
+
+  const pending = useAuthStore
+    .getState()
+    .restoreSession(() => response);
+
+  useAuthStore.getState().login(bob, "token-b");
+
+  finish({
+    user: alice,
+    token: "old-token-a",
+  });
+
+  await pending;
+
+  assert.equal(useAuthStore.getState().user.id, bob.id);
+  assert.equal(useAuthStore.getState().token, "token-b");
+});
+
+test("failed session restoration cannot clear a newer login", async () => {
+  localStorage.removeItem("forgepath-signed-out");
+
+  useAuthStore.setState({
+    isRestoringSession: true,
+  });
+
+  let fail;
+
+  const response = new Promise((_, reject) => {
+    fail = reject;
+  });
+
+  const pending = useAuthStore
+    .getState()
+    .restoreSession(() => response);
+
+  useAuthStore.getState().login(bob, "token-b");
+
+  fail(new Error("Previous session expired"));
+
+  await pending;
+
+  assert.equal(useAuthStore.getState().user.id, bob.id);
+  assert.equal(useAuthStore.getState().token, "token-b");
+  assert.equal(
+    useAuthStore.getState().isAuthenticated,
+    true,
   );
 });
