@@ -23,7 +23,50 @@ export interface TestExecutionResult {
   finished_at: string;
 }
 
+export type ProjectTestExecutionResult = Omit<TestExecutionResult, "workspace_root"> & {
+  project_id: string;
+  snapshot_id: string;
+};
+
+export type ProjectTestSnapshot = {
+  project_id: string;
+  snapshot_id: string;
+  file_count: number;
+  total_bytes: number;
+  sha256: string;
+};
+
 const authenticated = requestWithTokenRefresh;
+
+export const getProjectTestSnapshot = (
+  token: string,
+  projectId: string,
+): Promise<ProjectTestSnapshot> =>
+  authenticated(token, (validToken) =>
+    apiClient.get(`projects/${encodeURIComponent(projectId)}/snapshot`, {
+      headers: { Authorization: `Bearer ${validToken}` },
+    }).json<ProjectTestSnapshot>(),
+  );
+
+export const executeProjectTests = (
+  token: string,
+  projectId: string,
+  expectedSnapshotId: string,
+  runner: TestRunner,
+  timeoutSeconds: number,
+): Promise<ProjectTestExecutionResult> =>
+  authenticated(token, (validToken) =>
+    apiClient.post(`projects/${encodeURIComponent(projectId)}/tests/run`, {
+      headers: { Authorization: `Bearer ${validToken}` },
+      json: {
+        expected_snapshot_id: expectedSnapshotId,
+        runner,
+        timeout_seconds: timeoutSeconds,
+        approval: "run",
+      },
+      timeout: (timeoutSeconds + 90) * 1000,
+    }).json<ProjectTestExecutionResult>(),
+  );
 
 export const executeLocalTests = async (
   token: string,
@@ -74,4 +117,19 @@ export const engineeringError = async (error: unknown): Promise<string> => {
     return `Request failed (HTTP ${error.response.status}).`;
   }
   return error instanceof Error ? error.message : "An unexpected error occurred.";
+};
+
+export const projectTestError = async (error: unknown): Promise<string> => {
+  if (error instanceof HTTPError) {
+    if (error.response.status === 404) return "This project or snapshot is no longer available. Refresh your projects.";
+    if (error.response.status === 409) return "The project snapshot changed. Refresh and approve the new snapshot before running tests.";
+    if (error.response.status === 503) {
+      try {
+        const data: unknown = await error.response.clone().json();
+        if (data && typeof data === "object" && "detail" in data && typeof data.detail === "string") return data.detail;
+      } catch { /* keep fallback */ }
+      return "Isolated test execution is unavailable. Try again later.";
+    }
+  }
+  return engineeringError(error);
 };

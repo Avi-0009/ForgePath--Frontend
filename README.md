@@ -264,3 +264,15 @@ For an independent deployment:
 ## Related repository
 
 FastAPI services, migrations, storage rules, and security tests live in `ForgePath--Backend`.
+
+## Test Lab
+
+- Execute pytest, npm and Go tests against saved project snapshots.
+- Select account-owned projects and supported runners.
+- Configure execution timeouts.
+- Require explicit approval before execution.
+- Display execution status, exit code, stdout and stderr.
+- Maintain account-specific execution result visibility.
+
+Execution requires the backend Docker sandbox environment.
+Hosted sandbox execution is not yet supported.

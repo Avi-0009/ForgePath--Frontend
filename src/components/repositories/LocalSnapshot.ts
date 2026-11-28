@@ -164,7 +164,14 @@ export const collectLocalSnapshot = async (
         assetPaths.push([...parents, handle.name].join("/"));
         continue;
       }
-      if (sensitiveFile(handle.name) || !sourceExtensions.has(extension)) {
+      const isGoMetadata =
+        handle.name === "go.mod" ||
+        handle.name === "go.sum";
+
+      if (
+        sensitiveFile(handle.name) ||
+        (!sourceExtensions.has(extension) && !isGoMetadata)
+      ) {
         skippedFiles += 1;
         continue;
       }
