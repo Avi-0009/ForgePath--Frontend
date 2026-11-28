@@ -1,3 +1,4 @@
+import NativeModal from "../components/accessibility/NativeModal";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -604,13 +605,7 @@ const PatchReviewPage = () => {
 
         {/* Explicit reject confirmation */}
         {showRejectConfirmation && patch && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/85 p-4">
-            <section
-              role="alertdialog"
-              aria-modal="true"
-              aria-labelledby="reject-patch-title"
-              className="w-full max-w-md rounded-panel border border-app-line bg-app-panel p-5 shadow-panel"
-            >
+          <NativeModal alert labelledBy="reject-patch-title" describedBy="reject-patch-description" onCancel={() => setShowRejectConfirmation(false)}>
               <div className="flex items-center gap-2">
                 <AlertTriangle
                   size={19}
@@ -626,7 +621,7 @@ const PatchReviewPage = () => {
                 </h2>
               </div>
 
-              <p className="mt-3 wrap-break-words text-xs leading-relaxed text-app-muted">
+              <p id="reject-patch-description" className="mt-3 wrap-break-words text-xs leading-relaxed text-app-muted">
                 The proposal for{" "}
                 <strong className="text-app-text">
                   {patch.relative_path}
@@ -635,9 +630,10 @@ const PatchReviewPage = () => {
                 No code will be modified.
               </p>
 
-              <div className="mt-5 flex justify-end gap-2">
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
                 <button
                   type="button"
+                  data-safe-focus
                   onClick={() =>
                     setShowRejectConfirmation(false)
                   }
@@ -654,8 +650,7 @@ const PatchReviewPage = () => {
                   Reject proposal
                 </button>
               </div>
-            </section>
-          </div>
+          </NativeModal>
         )}
 
         <div className="flex items-start gap-2 text-2xs text-app-dim">

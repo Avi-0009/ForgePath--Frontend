@@ -1,3 +1,4 @@
+import NativeModal from "../components/accessibility/NativeModal";
 import { 
   useEffect, 
   useMemo, 
@@ -213,12 +214,12 @@ const ApprovalsPage = () => {
           </section>
         </div>
 
-        {decision && detail && <div className="fixed inset-0 z-50 grid place-items-center bg-app-bg/90 p-4"><div role="alertdialog" aria-modal="true" aria-labelledby="decision-title" className="w-full max-w-md rounded-panel border border-app-line bg-app-panel p-5 shadow-panel">
+        {decision && detail && <NativeModal alert labelledBy="decision-title" describedBy="decision-description" onCancel={() => setDecision(null)}>
           <div className="flex gap-2"><ShieldAlert size={19} className="shrink-0 text-status-amber"/><h2 id="decision-title" className="text-sm font-bold capitalize">Confirm {decision.action.replaceAll("_", " ")}</h2></div>
-          <p className="mt-3 wrap-break-words text-xs leading-relaxed text-app-muted">{confirmText}</p>
+          <p id="decision-description" className="mt-3 wrap-break-words text-xs leading-relaxed text-app-muted">{confirmText}</p>
           <p className="mt-3 text-2xs text-app-dim">Workflow: {detail.thread_id.slice(0, 8)} · {label(detail.status)}</p>
-          <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setDecision(null)} className="btn">Go back</button><button type="button" onClick={() => void submit()} disabled={submitting} className="btn btn-primary disabled:opacity-50">Confirm decision</button></div>
-        </div></div>}
+          <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" data-safe-focus onClick={() => setDecision(null)} className="btn">Go back</button><button type="button" onClick={() => void submit()} disabled={submitting} className="btn btn-primary disabled:opacity-50">Confirm decision</button></div>
+        </NativeModal>}
       </div>
     </div>
   );

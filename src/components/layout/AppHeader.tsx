@@ -29,6 +29,7 @@ import { useActiveProjectId } from "../../store/useActiveProjectId";
 
 interface AppHeaderProps {
   onOpenMenu: () => void;
+  isMenuOpen: boolean;
 }
 
 type Panel = "help" | "notifications" | null;
@@ -165,7 +166,7 @@ const getCheckpointLabel = (status: WorkflowStatus) => {
   }
 };
 
-const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
+const AppHeader = ({ onOpenMenu, isMenuOpen }: AppHeaderProps) => {
   const location = useLocation();
   const token = useAuthStore((state) => state.token);
   const isAuthenticated = useAuthStore(
@@ -265,10 +266,13 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
     };
 
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !event.defaultPrevented && !document.querySelector("dialog:modal")) {
         setOpenPanel(null);
+        document.getElementById(`forgepath-${openPanel}-trigger`)?.focus();
       }
     };
+
+    controlsRef.current?.querySelector<HTMLElement>("[data-close-header-panel]")?.focus();
 
     document.addEventListener("pointerdown", onOutsideClick);
     window.addEventListener("keydown", onEscape);
@@ -338,7 +342,7 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
   };
 
   const controlClass =
-    "flex h-9 w-9 shrink-0 items-center justify-center " +
+    "flex h-10 w-10 shrink-0 items-center justify-center " +
     "rounded-lg border border-app-line bg-transparent " +
     "text-app-muted transition-colors hover:bg-app-btn " +
     "hover:text-app-text focus-visible:outline-2 " +
@@ -346,11 +350,13 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
     "focus-visible:outline-app-accent";
 
   return (
-    <header className="relative z-30 flex h-16 shrink-0 items-center gap-3 border-b border-app-line bg-app-bg px-4 sm:px-6 lg:px-9">
+    <header className="relative z-30 flex h-16 shrink-0 items-center gap-2 border-b border-app-line bg-app-bg px-3 sm:gap-3 sm:px-6 lg:px-9">
       <button
         type="button"
         aria-label="Open navigation"
-        aria-controls="forgepath-sidebar"
+        id="forgepath-open-navigation"
+        aria-expanded={isMenuOpen}
+        aria-controls={isMenuOpen ? "forgepath-sidebar" : undefined}
         onClick={onOpenMenu}
         className={`${controlClass} md:hidden`}
       >
@@ -377,7 +383,7 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
 
       <div
         ref={controlsRef}
-        className="relative flex shrink-0 items-center gap-2.5"
+        className="relative flex min-w-0 items-center gap-1.5 sm:gap-2.5"
       >
         <div
           role="status"
@@ -388,7 +394,7 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
               ? `ForgePath: ${statusLabel}`
               : "ForgePath is ready"
           }
-          className={`flex h-8 max-w-[min(15rem,45vw)] shrink-0 items-center gap-2 overflow-hidden rounded-lg border px-2.5 text-2xs transition-all duration-300 sm:px-3 ${
+          className={`flex h-8 min-w-0 max-w-[min(15rem,38vw)] items-center gap-2 overflow-hidden rounded-lg border px-2.5 text-2xs transition-all duration-300 sm:px-3 ${
             isWorking
               ? "border-app-accent/50 bg-app-accent/10 text-app-accent shadow-[0_0_20px_rgba(193,240,107,0.16)]"
               : "border-app-line bg-app-panel2 text-app-muted"
@@ -421,6 +427,8 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
 
         <button
           type="button"
+          id="forgepath-help-trigger"
+          aria-controls={openPanel === "help" ? "forgepath-header-panel" : undefined}
           aria-label="Help"
           aria-haspopup="dialog"
           aria-expanded={openPanel === "help"}
@@ -432,6 +440,8 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
 
         <button
           type="button"
+          id="forgepath-notifications-trigger"
+          aria-controls={openPanel === "notifications" ? "forgepath-header-panel" : undefined}
           aria-label="Notifications"
           aria-haspopup="dialog"
           aria-expanded={openPanel === "notifications"}
@@ -443,13 +453,14 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
 
         {openPanel && (
           <section
+            id="forgepath-header-panel"
             role="dialog"
             aria-label={
               openPanel === "help"
                 ? "ForgePath help"
                 : "Workflow notifications"
             }
-            className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-app-line bg-app-panel shadow-panel"
+            className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))] max-h-[calc(100dvh-5.5rem)] overflow-y-auto rounded-xl border border-app-line bg-app-panel shadow-panel"
           >
             <div className="flex items-center justify-between gap-2 border-b border-app-line px-4 py-3">
               <div className="flex items-center gap-2">
@@ -491,7 +502,8 @@ const AppHeader = ({ onOpenMenu }: AppHeaderProps) => {
                 <button
                   type="button"
                   aria-label="Close panel"
-                  onClick={() => setOpenPanel(null)}
+                  data-close-header-panel
+                  onClick={() => { setOpenPanel(null); document.getElementById(`forgepath-${openPanel}-trigger`)?.focus(); }}
                   className="rounded-md p-1.5 text-app-muted hover:bg-app-panel3 hover:text-app-text"
                 >
                   <X size={15} />

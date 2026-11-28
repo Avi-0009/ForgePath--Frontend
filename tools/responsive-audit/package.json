@@ -1,0 +1,7 @@
+{
+  "name": "forgepath-responsive-audit",
+  "private": true,
+  "type": "module",
+  "scripts": { "audit": "node audit.mjs" },
+  "dependencies": { "@axe-core/playwright": "^4.10.2", "playwright": "^1.51.1" }
+}

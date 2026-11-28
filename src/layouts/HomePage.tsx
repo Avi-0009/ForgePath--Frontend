@@ -208,14 +208,14 @@ const RecentTasks = ({
           </p>
         </div>
       ) : (
-        <div className="w-full overflow-x-auto">
+        <div className="w-full overflow-x-auto" role="region" aria-label="Recent tasks table" tabIndex={0}>
           <table className="w-full min-w-145 border-collapse text-left text-xs">
             <thead>
               <tr className="border-b border-app-line text-micro font-bold uppercase tracking-wider text-app-table-head">
-                <th className="px-4 py-3">Task</th>
-                <th className="px-4 py-3">Repository</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Updated</th>
+                <th scope="col" className="px-4 py-3">Task</th>
+                <th scope="col" className="px-4 py-3">Repository</th>
+                <th scope="col" className="px-4 py-3">Status</th>
+                <th scope="col" className="px-4 py-3">Updated</th>
               </tr>
             </thead>
 
@@ -566,7 +566,7 @@ export default function HomePage() {
 
         <section
           aria-label="Engineering summary"
-          className="mb-5 grid grid-cols-2 gap-3.5 lg:grid-cols-4"
+          className="mb-5 grid grid-cols-1 gap-3.5 min-[400px]:grid-cols-2 xl:grid-cols-4"
         >
           <MetricCard
             label="Active tasks"

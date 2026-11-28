@@ -183,6 +183,7 @@ const ProfilePage = () => {
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col items-center pt-[3vh] animate-in fade-in slide-in-from-bottom-2 duration-300 px-6 pb-12">
       
+      <h1 className="sr-only">Profile</h1>
       <div className="flex items-center justify-center w-full px-4">
         <div className="flex-1 h-px bg-app-line max-w-30"></div>
         <div className="w-24 h-24 shrink-0 rounded-full bg-[#2a3036] border-2 border-app-line flex items-center justify-center text-3xl font-extrabold text-app-accent uppercase shadow-xl mx-6">
@@ -213,14 +214,14 @@ const ProfilePage = () => {
         <div className="space-y-4">
           
           <div>
-            <label className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
+            <label htmlFor="profile-full-name" className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
               Full Name
             </label>
             <div className="relative">
               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
               <input
                 type="text"
-                name="full_name"
+                id="profile-full-name" name="full_name"
                 autoComplete="name"
                 required
                 maxLength={100}
@@ -235,7 +236,7 @@ const ProfilePage = () => {
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-app-dim uppercase tracking-wider">
+              <label htmlFor="profile-username" className="text-xs font-bold text-app-dim uppercase tracking-wider">
                 Username
               </label>
               <span className="text-micro text-app-muted">Must be unique</span>
@@ -244,7 +245,7 @@ const ProfilePage = () => {
               <AtSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
               <input
                 type="text"
-                name="username"
+                id="profile-username" name="username"
                 autoComplete="username"
                 required
                 minLength={3}
@@ -260,13 +261,13 @@ const ProfilePage = () => {
           </div>
 
           <div>
-            <label className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
+            <label htmlFor="profile-email" className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
               Email Address
             </label>
             <div className="relative">
               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
               <input
-                type="email"
+                id="profile-email" type="email"
                 value={email}
                 readOnly
                 className="w-full pl-10 pr-4 py-2 bg-[#1c2124]/50 border border-app-line rounded-xl text-app-muted focus:outline-none cursor-not-allowed transition-all shadow-sm"
@@ -289,14 +290,14 @@ const ProfilePage = () => {
 
             {showOtpVerify && (
               <div className="mt-3 p-4 bg-[#141719] border border-app-line rounded-xl animate-in slide-in-from-top-2 fade-in duration-200">
-                <label className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
+                <label htmlFor="profile-otp" className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
                   Enter Verification Code
                 </label>
                 <div className="flex gap-2">
-                  <div className="relative flex-1">
+                  <div className="relative min-w-0 flex-1">
                     <Key className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
                     <input
-                      type="text"
+                      id="profile-otp" type="text" inputMode="numeric" autoComplete="one-time-code"
                       maxLength={6}
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}

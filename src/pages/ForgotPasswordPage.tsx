@@ -63,7 +63,7 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-app-bg flex items-start justify-center pt-[15vh] sm:p-8 p-6">
+    <div className="min-h-dvh bg-app-bg flex items-start justify-center p-4 pt-8 sm:p-8 sm:pt-[15vh]">
       <div className="w-full max-w-md mx-auto">
         
         {step === "request" ? (
@@ -91,7 +91,7 @@ const ForgotPasswordPage = () => {
         </div>
 
         {error && (
-          <div className="p-3 mb-6 text-sm font-medium text-status-red bg-status-red/10 rounded-lg border border-status-red/20">
+          <div role="alert" className="p-3 mb-6 text-sm font-medium text-status-red bg-status-red/10 rounded-lg border border-status-red/20">
             {error}
           </div>
         )}
@@ -99,13 +99,13 @@ const ForgotPasswordPage = () => {
         {step === "request" && (
           <form onSubmit={handleRequestOtp} className="space-y-5">
             <div>
-              <label className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
+              <label htmlFor="reset-email" className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
                 Email Address
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
                 <input
-                  type="email"
+                  id="reset-email" type="email" autoComplete="email"
                   className="w-full pl-10 pr-4 py-3 bg-[#1c2124] border border-app-line rounded-xl text-app-text focus:outline-none focus:border-app-accent transition-all shadow-sm"
                   placeholder="name@example.com"
                   value={email}
@@ -124,13 +124,13 @@ const ForgotPasswordPage = () => {
         {step === "reset" && (
           <form onSubmit={handleResetPassword} className="space-y-5">
             <div>
-              <label className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
+              <label htmlFor="reset-otp" className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
                 6-Digit OTP Code
               </label>
               <div className="relative">
                 <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
                 <input
-                  type="text"
+                  id="reset-otp" type="text" inputMode="numeric" autoComplete="one-time-code"
                   maxLength={6}
                   className="w-full pl-12 pr-4 py-3 bg-[#1c2124] border border-app-line rounded-xl text-app-text focus:outline-none focus:border-app-accent transition-all tracking-[0.5em] font-mono text-lg font-bold shadow-sm"
                   placeholder="••••••"
@@ -142,13 +142,13 @@ const ForgotPasswordPage = () => {
             </div>
 
             <div>
-              <label className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
+              <label htmlFor="reset-password" className="text-xs font-bold text-app-dim uppercase tracking-wider mb-2 block">
                 New Password
               </label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-app-dim" />
                 <input
-                  type={showPassword ? "text" : "password"}
+                  id="reset-password" type={showPassword ? "text" : "password"} autoComplete="new-password"
                   className="w-full pl-12 pr-12 py-3 bg-[#1c2124] border border-app-line rounded-xl text-app-text focus:outline-none focus:border-app-accent transition-all shadow-sm"
                   placeholder="Create a strong password"
                   value={newPassword}
@@ -157,6 +157,7 @@ const ForgotPasswordPage = () => {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-app-dim hover:text-app-text transition-colors"
                 >

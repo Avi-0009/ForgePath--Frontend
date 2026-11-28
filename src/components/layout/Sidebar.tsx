@@ -94,7 +94,7 @@ const systemItems: NavigationItem[] = [
   },
 ];
 
-function NavigationGroup({
+const NavigationGroup = ({
   title,
   items,
   onNavigate,
@@ -102,7 +102,7 @@ function NavigationGroup({
   title: string;
   items: NavigationItem[];
   onNavigate: () => void;
-}) {
+}) => {
   return (
     <div className="space-y-2">
       <h2 className="px-3 text-micro font-bold uppercase tracking-eyebrow text-app-dim">
@@ -121,7 +121,7 @@ function NavigationGroup({
               onClick={onNavigate}
               className={({ isActive }) =>
                 [
-                  "flex min-h-10 items-center gap-3",
+                  "flex min-h-11 items-center gap-3",
                   "rounded-lg px-3 py-2 text-xs",
                   "transition-colors",
                   isActive
@@ -150,12 +150,12 @@ function NavigationGroup({
       </div>
     </div>
   );
-}
+};
 
-export default function Sidebar({
+const Sidebar = ({
   isOpen,
   setIsOpen,
-}: SidebarProps) {
+}: SidebarProps) => {
   const navigate = useNavigate();
 
   const isAuthenticated = useAuthStore(
@@ -168,17 +168,11 @@ export default function Sidebar({
 
   return (
     <aside
-      id="forgepath-sidebar"
+      id={isOpen ? "forgepath-sidebar" : "forgepath-desktop-sidebar"}
       aria-label="Main navigation"
       className={[
-        "fixed inset-y-0 left-0 z-50",
-        "flex h-dvh w-61.5 shrink-0 flex-col",
-        "border-r border-app-line bg-app-panel",
-        "transition-transform duration-200",
-        "md:static md:translate-x-0",
-        isOpen
-          ? "translate-x-0"
-          : "-translate-x-full",
+        "flex min-h-0 shrink-0 flex-col bg-app-panel",
+        isOpen ? "w-full flex-1 overflow-y-auto" : "h-full w-61.5 border-r border-app-line",
       ].join(" ")}
     >
       <div className="shrink-0 px-4 pb-4 pt-6">
@@ -240,7 +234,7 @@ export default function Sidebar({
         )}
       </div>
 
-      <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 pb-5 pt-2">
+      <nav aria-label="Primary navigation" className={`space-y-6 px-4 pb-5 pt-2 ${isOpen ? "flex-1" : "min-h-0 flex-1 overflow-y-auto"}`}>
         <NavigationGroup
           title="Workspace"
           items={workspaceItems}
@@ -280,4 +274,6 @@ export default function Sidebar({
       </div>
     </aside>
   );
-}
+};
+
+export default Sidebar;

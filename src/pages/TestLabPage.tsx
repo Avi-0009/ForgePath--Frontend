@@ -1,3 +1,4 @@
+import NativeModal from "../components/accessibility/NativeModal";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -34,7 +35,7 @@ type DisplayedExecution = ProjectTestExecutionResult & { projectName: string };
 const Output = ({ text, label }: { text: string; label: string }) => (
   <div className="min-w-0">
     <div className="border-b border-app-line bg-app-panel2 px-3 py-2 text-micro font-semibold uppercase tracking-eyebrow text-app-muted">{label}</div>
-    <pre className="max-h-72 overflow-auto whitespace-pre-wrap wrap-break-words bg-app-bg p-3 font-mono text-2xs leading-5 text-app-mono-text">{text || "(no output)"}</pre>
+    <pre tabIndex={0} aria-label={label} className="max-h-72 overflow-auto whitespace-pre-wrap wrap-break-words bg-app-bg p-3 font-mono text-2xs leading-5 text-app-mono-text">{text || "(no output)"}</pre>
   </div>
 );
 
@@ -209,11 +210,11 @@ const TestLabPage = () => {
                   </select>
                 </label>
                 <label className="block text-xs font-semibold">Timeout (seconds)
-                  <input type="number" min={1} max={600} value={timeout} onChange={(e) => setTimeoutValue(Number(e.target.value))} disabled={busy} className="mt-2 w-full rounded-lg border border-app-line bg-app-panel2 p-2.5 text-xs font-normal text-app-text"/>
+                  <input type="number" min={1} max={600} aria-invalid={!validTimeout(timeout)} aria-describedby="test-timeout-hint" value={timeout} onChange={(e) => setTimeoutValue(Number(e.target.value))} disabled={busy} className="mt-2 w-full rounded-lg border border-app-line bg-app-panel2 p-2.5 text-xs font-normal text-app-text"/>
                 </label>
               </div>
-              <p className="text-2xs text-app-muted">The backend runs a predefined test command. Missing dependencies are not downloaded automatically.</p>
-              <button type="button" onClick={() => void prepareRun()} disabled={!token || !selectedProject || busy || loading || !validTimeout(timeout)} className="btn btn-primary disabled:opacity-50">
+              <p id="test-timeout-hint" className="text-2xs text-app-muted">Enter a whole number between 1 and 600 seconds. The backend runs a predefined test command. Missing dependencies are not downloaded automatically.</p>
+              <button id="forgepath-run-tests" type="button" onClick={() => void prepareRun()} disabled={!token || !selectedProject || busy || loading || !validTimeout(timeout)} className="btn btn-primary disabled:opacity-50">
                 {preparing || running ? <LoaderCircle size={15} className="animate-spin"/> : <Play size={15}/>}{running ? "Executing tests..." : preparing ? "Checking snapshot..." : "Run tests"}
               </button>
             </div>
@@ -245,7 +246,7 @@ const TestLabPage = () => {
         <section className={panel}>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-app-line p-4 sm:p-5">
             <div><h2 className="text-[13px] font-bold">Execution results</h2><p className="mt-1 text-2xs text-app-muted">{execution ? "Latest manually executed suite" : running ? "Test execution in progress" : "Selected workflow checkpoint"}</p></div>
-            {!running && status && <span className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-2xs ${status === "passed" ? "border-status-green-line bg-status-green-bg text-status-green" : "border-status-amber-line bg-status-amber-bg text-status-amber"}`}>{status === "passed" ? <CheckCircle2 size={14}/> : <XCircle size={14}/>} {status}</span>}
+            {!running && status && <span role="status" className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-2xs ${status === "passed" ? "border-status-green-line bg-status-green-bg text-status-green" : "border-status-amber-line bg-status-amber-bg text-status-amber"}`}>{status === "passed" ? <CheckCircle2 size={14}/> : <XCircle size={14}/>} {status}</span>}
           </div>
           {running ? <div role="status" className="flex items-center gap-3 p-5 text-xs text-app-muted"><LoaderCircle size={18} className="animate-spin"/>Waiting for isolated test execution to finish…</div> : execution ? <div className="space-y-4 p-4 sm:p-5">
             <p className="break-all text-xs font-semibold">{execution.projectName}</p>
@@ -257,13 +258,13 @@ const TestLabPage = () => {
           </div> : hasResults ? <div className="grid min-w-0 gap-4 p-4 sm:p-5 lg:grid-cols-2"><div className="overflow-hidden rounded-lg border border-app-line"><Output label="workflow stdout" text={workflowTest?.stdout ?? ""}/></div><div className="overflow-hidden rounded-lg border border-app-line"><Output label="workflow stderr" text={workflowTest?.stderr ?? ""}/></div></div> : <div className="flex flex-col items-center gap-3 px-5 py-12 text-center text-xs text-app-muted"><Terminal size={25} className="text-app-accent"/><p>No test output to display. Choose a workflow with a saved result or execute a suite above.</p></div>}
         </section>
 
-        {confirm && <div className="fixed inset-0 z-50 grid place-items-center bg-app-bg/90 p-4"><div role="alertdialog" aria-modal="true" aria-labelledby="test-consent-title" className="w-full max-w-md rounded-panel border border-app-line bg-app-panel p-5 shadow-panel">
+        {confirm && <NativeModal alert labelledBy="test-consent-title" describedBy="test-consent-description" onCancel={() => setConfirm(null)} returnFocusId="forgepath-run-tests">
           <h2 id="test-consent-title" className="text-sm font-bold">Authorize test execution?</h2>
-          <p className="mt-3 text-xs leading-relaxed text-app-muted">Run <strong className="text-app-text">{confirm.runner}</strong> on <strong className="break-all text-app-text">{confirm.projectName}</strong> with a test timeout of {confirm.timeout} seconds. Only this saved snapshot will be executed.</p>
+          <p id="test-consent-description" className="mt-3 text-xs leading-relaxed text-app-muted">Run <strong className="text-app-text">{confirm.runner}</strong> on <strong className="break-all text-app-text">{confirm.projectName}</strong> with a test timeout of {confirm.timeout} seconds. Only this saved snapshot will be executed.</p>
           <p className="mt-3 break-all font-mono text-micro text-app-dim">Snapshot: {confirm.snapshot.snapshot_id}</p>
           <p className="mt-2 text-2xs text-app-muted">{confirm.snapshot.file_count} files · {confirm.snapshot.total_bytes.toLocaleString()} bytes · offline sandbox</p>
-          <div className="mt-5 flex justify-end gap-2"><button type="button" className="btn" onClick={() => setConfirm(null)}>Cancel</button><button type="button" className="btn btn-primary" onClick={() => void runTests()}><Play size={14}/>Authorize and run</button></div>
-        </div></div>}
+          <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" data-safe-focus className="btn" onClick={() => setConfirm(null)}>Cancel</button><button type="button" className="btn btn-primary" onClick={() => void runTests()}><Play size={14}/>Authorize and run</button></div>
+        </NativeModal>}
       </div>
     </div>
   );

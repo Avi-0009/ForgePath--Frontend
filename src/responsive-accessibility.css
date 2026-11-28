@@ -1,0 +1,84 @@
+/* Shared responsive and keyboard affordances; retain ForgePath's existing theme. */
+@layer base {
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-app-accent);
+    outline-offset: 3px;
+  }
+  :where(input, select, textarea) { min-width: 0; max-width: 100%; }
+  :where(a, button, summary) { overflow-wrap: anywhere; }
+  :where(pre, code) { overflow-wrap: anywhere; }
+  @media (pointer: coarse) {
+    :where(button, .btn, input, select, summary) { min-height: 44px; }
+    input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px !important; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+  @media (forced-colors: active) {
+    :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid Highlight; }
+  }
+}
+/* Unlayered so existing utility resets cannot suppress keyboard indication. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-app-accent);
+  outline-offset: 2px;
+}
+.forgepath-skip-link {
+  position: fixed; z-index: 100; top: .75rem; left: .75rem;
+  padding: .75rem 1rem; border-radius: .5rem;
+  color: var(--color-app-accent-ink); background: var(--color-app-accent);
+  transform: translateY(-200%);
+}
+.forgepath-skip-link:focus { transform: none; }
+.forgepath-modal, .forgepath-drawer {
+  position: fixed; color: var(--color-app-text); background: var(--color-app-panel);
+  border: 1px solid var(--color-app-line); overscroll-behavior: contain;
+}
+.forgepath-modal {
+  inset: 0; margin: auto; width: min(28rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem); overflow: auto;
+  padding: 1.25rem; border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+}
+.forgepath-drawer {
+  inset: 0 auto 0 0; margin: 0; padding: 0;
+  width: min(18rem, calc(100% - 2rem)); max-width: none;
+  height: 100dvh; max-height: none; overflow: hidden;
+}
+.forgepath-modal::backdrop, .forgepath-drawer::backdrop { background: rgb(17 19 21 / 85%); }
+.forgepath-modal :where(pre, p) { overflow-wrap: anywhere; }
+.auth-shell { height: auto; max-height: none; min-height: 0; }
+@media (min-width: 48rem) { .auth-shell { min-height: 38rem; } }
+@media (forced-colors: active) {
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible { outline-color: Highlight; }
+}
+@media (pointer: coarse) {
+  :where(button:not([disabled]), .btn, input:not([type="checkbox"]):not([type="radio"]), select, summary) {
+    min-height: 44px;
+  }
+  #forgepath-open-navigation, #forgepath-help-trigger, #forgepath-notifications-trigger { min-width: 44px; }
+}
+@media (max-height: 480px) {
+  #forgepath-desktop-sidebar { overflow-y: auto; }
+  #forgepath-desktop-sidebar nav { flex: none; overflow: visible; }
+}
+
+/* Preserve readable contrast during disabled and loading states. */
+.btn {
+  transition-property: transform, box-shadow;
+}
+
+button.btn:disabled {
+  opacity: 1;
+  color: var(--color-app-muted);
+  background-color: var(--color-app-panel2);
+  border-color: var(--color-app-line);
+  cursor: not-allowed;
+  transform: none;
+  transition: none;
+}

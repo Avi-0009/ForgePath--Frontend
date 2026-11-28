@@ -8,7 +8,7 @@ interface AuthVisualProps {
 const AuthVisual = ({ isSignUp, setIsSignUp }: AuthVisualProps) => {
   return (
     <aside
-      className={`hidden md:flex absolute top-0 right-0 w-1/2 h-full bg-app-auth-panel flex-col items-center justify-center text-center p-12 overflow-hidden transition-transform duration-700 ease-in-out z-20 shadow-2xl ${
+      className={`hidden md:flex absolute top-0 right-0 w-1/2 h-full bg-app-auth-panel flex-col items-center justify-center text-center p-8 xl:p-12 overflow-hidden z-20 shadow-2xl ${
         isSignUp
           ? "-translate-x-full border-r border-app-line"
           : "translate-x-0 border-l border-app-line"
@@ -22,12 +22,14 @@ const AuthVisual = ({ isSignUp, setIsSignUp }: AuthVisualProps) => {
           <img src={logo} alt="ForgePath Logo" className="w-15 h-15" />
         </div>
 
-        <div className="relative w-full h-35">
+        <div className="relative w-full min-h-35">
           <div
-            className={`absolute inset-0 flex flex-col items-center transition-all duration-500 transform ${
+            inert={!isSignUp}
+            aria-hidden={!isSignUp}
+            className={`flex-col items-center ${
               !isSignUp
-                ? "opacity-0 translate-y-4 pointer-events-none"
-                : "opacity-100 translate-y-0"
+                ? "hidden"
+                : "flex"
             }`}
           >
             <h2 className="font-manrope text-3xl font-extrabold tracking-tight text-app-text mb-4">
@@ -39,10 +41,12 @@ const AuthVisual = ({ isSignUp, setIsSignUp }: AuthVisualProps) => {
           </div>
 
           <div
-            className={`absolute inset-0 flex flex-col items-center transition-all duration-500 transform ${
+            inert={isSignUp}
+            aria-hidden={isSignUp}
+            className={`flex-col items-center ${
               isSignUp
-                ? "opacity-0 -translate-y-4 pointer-events-none"
-                : "opacity-100 translate-y-0"
+                ? "hidden"
+                : "flex"
             }`}
           >
             <h2 className="font-manrope text-3xl font-extrabold tracking-tight text-app-text mb-4">

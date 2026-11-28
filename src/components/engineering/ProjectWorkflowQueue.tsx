@@ -1,3 +1,4 @@
+import NativeModal from "../accessibility/NativeModal";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle2, RefreshCw, XCircle } from "lucide-react";
@@ -265,26 +266,23 @@ const ProjectWorkflowQueueContent = ({ mode, token, userId }: {
       )}
 
       {pending && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-app-bg/90 p-4">
-          <div role="alertdialog" aria-modal="true" aria-labelledby="project-decision-title"
-            className="w-full max-w-md rounded-panel border border-app-line bg-app-panel p-5 shadow-panel">
+        <NativeModal alert labelledBy="project-decision-title" describedBy="project-decision-description" onCancel={() => setPending(null)}>
             <h3 id="project-decision-title" className="text-sm font-bold">
               Confirm {pending.decision} {pending.item.pending_decision} decision
             </h3>
-            <p className="mt-3 text-xs text-app-muted">
+            <p id="project-decision-description" className="mt-3 text-xs text-app-muted">
               Task: {pending.item.task.title}. This records a decision only; it does not
               generate AI output, execute commands, or modify source files.
             </p>
             <p className="mt-2 text-micro text-app-dim">
               Snapshot: {pending.item.task.snapshot_id}
             </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" className="btn" onClick={() => setPending(null)}>Cancel</button>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button type="button" data-safe-focus className="btn" onClick={() => setPending(null)}>Cancel</button>
               <button type="button" className="btn btn-primary" disabled={busy}
                 onClick={() => void submitDecision()}>Confirm decision</button>
             </div>
-          </div>
-        </div>
+        </NativeModal>
       )}
     </section>
   );

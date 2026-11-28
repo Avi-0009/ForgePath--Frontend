@@ -276,3 +276,39 @@ FastAPI services, migrations, storage rules, and security tests live in `ForgePa
 
 Execution requires the backend Docker sandbox environment.
 Hosted sandbox execution is not yet supported.
+
+## Responsive UI and accessibility
+
+ForgePath supports responsive desktop, tablet and mobile layouts.
+
+Accessibility features:
+
+- Keyboard-accessible navigation and controls.
+- Visible focus indicators and focus restoration.
+- Accessible mobile navigation drawer.
+- Screen-reader-friendly form labels.
+- Accessible confirmation and approval dialogs.
+- Improved text contrast and interaction target sizes.
+- Reduced-motion preference support.
+- Responsive tables, code blocks and execution output.
+
+### Automated accessibility testing
+
+Keep the frontend and backend development servers running.
+
+```powershell
+cd tools/responsive-audit
+npm install
+npx playwright install chromium
+npm run audit
+```
+
+Verification results:
+
+- 109 automated browser and accessibility checks passed.
+- Zero failures and zero skipped checks.
+- Manual desktop, mobile and tablet testing passed.
+- Manual keyboard and screen-reader testing passed.
+- Existing workflow regression testing passed.
+
+Automated accessibility testing does not guarantee complete WCAG compliance.

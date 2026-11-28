@@ -98,7 +98,7 @@ const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
-          <label className="form-label hidden" htmlFor="login-identifier">
+          <label className="form-label sr-only" htmlFor="login-identifier">
             Username or Email
           </label>
           <div className="relative">
@@ -116,7 +116,7 @@ const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
         </div>
 
         <div>
-          <label className="form-label hidden" htmlFor="login-password">
+          <label className="form-label sr-only" htmlFor="login-password">
             Password
           </label>
           <div className="relative">
@@ -129,12 +129,12 @@ const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
               onChange={(e) => setPassword(e.target.value)}
               maxLength={32}
               placeholder="Your password"
-              className="input pl-10 pr-10"
+              className="input pl-10 pr-12"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-app-dim hover:text-app-text transition-colors"
+              className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-app-dim hover:text-app-text transition-colors"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -143,7 +143,7 @@ const LoginForm = ({ setIsSignUp }: LoginFormProps) => {
         </div>
 
         {formError && (
-          <div className="text-status-red text-xs font-medium px-1">
+          <div role="alert" className="text-status-red text-xs font-medium px-1">
             {formError}
           </div>
         )}

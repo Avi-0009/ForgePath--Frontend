@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./responsive-accessibility.css";
 
 @theme {
   /* Base surfaces */
@@ -15,10 +16,10 @@
   /* Text */
   --color-app-text: #f2f3f4;
   --color-app-muted: #a0a7ad;
-  --color-app-dim: #737c84;
-  --color-app-dim2: #737d84;
-  --color-app-text-faint: #77828a;
-  --color-app-table-head: #788189;
+  --color-app-dim: #a0a7ad;
+  --color-app-dim2: #a0a7ad;
+  --color-app-text-faint: #a0a7ad;
+  --color-app-table-head: #a0a7ad;
   --color-app-mono-text: #d1d6da;
 
   /* Accent */
@@ -153,15 +154,7 @@
   .form-label {
     @apply block text-xs font-semibold text-app-text mb-1.5;
   }
-  .auth-shell {
-    height: calc(100vh - 2rem);
-    max-height: 720px;
-  }
-  @media (min-width: 640px) {
-    .auth-shell {
-      height: calc(100vh - 4rem);
-    }
-  }
+
 }
 
 :root {
@@ -171,7 +164,7 @@
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  scrollbar-color: var(--color-app-line-hover) transparent;
 }
 
 /* Chrome, Edge, Safari */
@@ -185,14 +178,14 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--line);
+  background: var(--color-app-line-hover);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent);
+  background: var(--color-app-accent);
   border: 2px solid transparent;
   background-clip: padding-box;
 }

@@ -1,74 +1,34 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import SignupForm from "../components/auth/SignupForm";
 import LoginForm from "../components/auth/LoginForm";
 import AuthVisual from "../components/auth/AuthVisual";
 
 const AuthPage = () => {
   const [isSignUp, setIsSignUp] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
+  const previousMode = useRef(isSignUp);
+
+  useEffect(() => {
+    if (previousMode.current === isSignUp) return;
+    previousMode.current = isSignUp;
+    formRef.current?.querySelector<HTMLElement>('[data-auth-active="true"] input')?.focus();
+  }, [isSignUp]);
 
   return (
-    <div className="min-h-screen bg-app-bg flex items-center justify-center p-4 sm:p-8">
-      <div className="auth-shell relative w-full max-w-5xl bg-app-bg md:bg-app-panel rounded-2xl md:rounded-4xl overflow-hidden md:border border-app-line md:shadow-panel flex">
-
-        {/* Mobile */}
-        <div className="w-full h-full relative md:hidden z-10">
-          <div
-            className={`absolute inset-0 overflow-y-auto transition-all duration-500 ${
-              isSignUp
-                ? "opacity-0 translate-y-4 pointer-events-none"
-                : "opacity-100 translate-y-0"
-            }`}
-          >
-            <div className="mx-auto max-w-app px-4 pb-16 pt-6 sm:px-6 sm:pt-8 md:px-9">
-              <LoginForm setIsSignUp={setIsSignUp} />
-            </div>
-          </div>
-          <div
-            className={`absolute inset-0 overflow-y-auto transition-all duration-500 ${
-              !isSignUp
-                ? "opacity-0 translate-y-4 pointer-events-none"
-                : "opacity-100 translate-y-0"
-            }`}
-          >
-            <div className="mx-auto max-w-app px-4 pb-16 pt-6 sm:px-6 sm:pt-8 md:px-9">
-              <SignupForm setIsSignUp={setIsSignUp} />
+    <main className="flex min-h-dvh items-center justify-center bg-app-bg p-4 sm:p-8">
+      <div className="auth-shell relative flex w-full max-w-5xl overflow-hidden rounded-2xl border-app-line bg-app-bg md:rounded-4xl md:border md:bg-app-panel md:shadow-panel">
+        {/* One instance of each form, independent of viewport size. Inactive forms are hidden and inert; drafts survive switching. */}
+        <div ref={formRef} className={`relative min-w-0 w-full md:w-1/2 ${isSignUp ? "md:ml-auto" : "md:mr-auto"}`}>
+          <div className="flex min-h-full items-center justify-center p-3 sm:p-6 md:p-8 xl:p-12">
+            <div className="w-full min-w-0">
+              <div hidden={isSignUp} inert={isSignUp} data-auth-active={!isSignUp}><LoginForm setIsSignUp={setIsSignUp} /></div>
+              <div hidden={!isSignUp} inert={!isSignUp} data-auth-active={isSignUp}><SignupForm setIsSignUp={setIsSignUp} /></div>
             </div>
           </div>
         </div>
-
-        {/* Desktop */}
-        <div className="hidden md:block absolute top-0 left-0 w-1/2 h-full z-10 overflow-y-auto">
-          <div className="min-h-full flex items-center justify-center p-12">
-            <div
-              className={`w-full transition-all duration-500 delay-100 ${
-                isSignUp
-                  ? "opacity-0 -translate-x-8 pointer-events-none"
-                  : "opacity-100 translate-x-0"
-              }`}
-            >
-              <LoginForm setIsSignUp={setIsSignUp} />
-            </div>
-          </div>
-        </div>
-
-        {/* Desktop */}
-        <div className="hidden md:block absolute top-0 right-0 w-1/2 h-full z-10 overflow-y-auto">
-          <div className="min-h-full flex items-center justify-center p-12">
-            <div
-              className={`w-full transition-all duration-500 delay-100 ${
-                !isSignUp
-                  ? "opacity-0 translate-x-8 pointer-events-none"
-                  : "opacity-100 translate-x-0"
-              }`}
-            >
-              <SignupForm setIsSignUp={setIsSignUp} />
-            </div>
-          </div>
-        </div>
-
         <AuthVisual isSignUp={isSignUp} setIsSignUp={setIsSignUp} />
       </div>
-    </div>
+    </main>
   );
 };
 
